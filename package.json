@@ -1,0 +1,40 @@
+{
+  "name": "dsh-preset-codex",
+  "version": "0.1.0",
+  "description": "Codex 风格的编码 Agent 预设：先看再改、根因优先、外科手术式改动、诚实交付。",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-bundle",
+    "agent-preset",
+    "codex",
+    "coding-agent"
+  ],
+  "engines": {
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.1-rc.1"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/build.mjs --check",
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "node scripts/build.mjs --check && node --test test/*.test.mjs"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
