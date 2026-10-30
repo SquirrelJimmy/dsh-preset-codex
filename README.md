@@ -4,17 +4,41 @@
 
 ## 安装
 
-```bash
-dsh plugin --profile <profile> add dsh-preset-codex
-```
+bundle 装在 profile 里，Web 与 Desktop 是两套 profile，要各装一次。命令都走 pnpm，`pnpm` 不在 `PATH` 上会直接退出（127）。
 
-本地开发时也可以直接指向项目目录：
+**Web**
 
 ```bash
-dsh plugin --profile <profile> add /path/to/dsh-preset-codex
+dsh plugin --profile web add dsh-preset-codex
 ```
 
-bundle 的 patch 在启动时合成：改 bundle 里的 YAML 要重启 dsh 才生效。新装 bundle 时 `dsh plugin add` 会改写 profile 的 `dsh.profile.bundles`，开着 HMR 的 web profile 会因此触发一次重新组合，有可能免重启就出现；重启仍是稳妥做法。卸载用 `dsh plugin --profile <profile> remove dsh-preset-codex`。
+**Desktop**
+
+Desktop 的 profile 由 Desktop 自己创建，先打开一次让它初始化，再**完全退出**（官方要求：运行中的 Desktop 会占着 profile，装完再打开），然后：
+
+```bash
+dsh plugin --profile desktop add dsh-preset-codex
+```
+
+装完重新打开 Desktop。没打开过就执行会报 `Open DeepSeek Harness Desktop once to initialize its profile, then fully quit it before running dsh plugin --profile desktop.`
+
+**本地开发**：直接把路径给 pnpm，用绝对路径（相对路径按当前目录解析）：
+
+```bash
+dsh plugin --profile web add /path/to/dsh-preset-codex
+dsh plugin --profile desktop add /path/to/dsh-preset-codex
+```
+
+**其他 profile**：`--profile` 取 `$DSH_HOME/profiles` 下的名字，`dsh web`、`dsh headless` 对应的就是 `web`、`headless`。名字不存在时 dsh 会新建，但只带 `@deepseek-ai/dsh-base` 一层，app bundle 要自己补。
+
+**卸载**：
+
+```bash
+dsh plugin --profile web remove dsh-preset-codex
+dsh plugin --profile desktop remove dsh-preset-codex
+```
+
+bundle 的 patch 在启动时合成：改 bundle 里的 YAML 要重启才生效。新装时 `dsh plugin add` 会改写 profile 的 `dsh.profile.bundles`，开着 HMR 的 web profile 会因此触发一次重新组合，有可能免重启就出现；重启 dsh、重新打开 Desktop 仍是稳妥做法。
 
 ## 预设内容
 
