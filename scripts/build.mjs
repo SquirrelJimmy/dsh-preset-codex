@@ -51,7 +51,9 @@ function inject(template, token, text) {
   if (!match) throw new Error(`模板里找不到占位符 ${token}`)
   const [, indent, key] = match
   const body = block(text, indent.length + 2)
-  return template.replace(re, `${indent}${key}: |\n${body}`)
+  // 用函数而不是替换串：替换串里的 $&、$'、$1 会被当成特殊模式，
+  // 提示词里出现这类字符（shell 片段很常见）会静默改写产物。
+  return template.replace(re, () => `${indent}${key}: |\n${body}`)
 }
 
 function render() {

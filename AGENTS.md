@@ -36,6 +36,7 @@ npm pack --dry-run                # 产物应只有 7 个文件（含自动附�
 
 ## 约束
 
-- **bundle 的 patch 在启动时合成**，改完 YAML 需要重启 dsh，不享受 profile patch 的热加载。安装或卸载改变 `dsh.profile.bundles` 时，开着 HMR 的 profile 会重新组合，可能免重启生效——但重启永远是最稳的那条路。
+- **bundle 的 patch 只在启动时合成**，改完 YAML 需要重启 dsh，不享受 profile patch 的热加载。安装或卸载会改写 `dsh.profile.bundles`，但这不触发 bundle 层重新合成：实测装完不重启时，预设注册表里仍看不到新预设。
 - **Web 端没有预设编辑器**。设置页的预设列表是只读的，创建或覆盖预设走「创造模式」生成新的 bundle；改本预设只能改本仓库源码再重启。
 - **默认预设仍是 `standard`**，本预设不抢默认，由用户选择。
+- **persona 有词数预算**（2000 词，`npm test` 会卡）。新增一条规则前先想清楚删哪条；上游的好点优先保留，不适用的载体做替换，不要静默丢弃。

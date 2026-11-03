@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Codex",
-    "description": "Codex-style coding agent preset: read before editing, fix root causes, keep changes surgical, report honestly."
+    "description": "A coding mode for long-horizon work in real repositories: read the code before editing, fix root causes instead of symptoms, keep the diff small and precise. Best for multi-file changes, debugging, and code review."
   }
 }

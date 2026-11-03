@@ -6,6 +6,8 @@
 
 bundle 装在 profile 里，Web 与 Desktop 是两套 profile，要各装一次。命令都走 pnpm，`pnpm` 不在 `PATH` 上会直接退出（127）。
 
+按包名安装要求这个包已经发布到 npm；还没发布时用下面「本地开发」那节的路径写法。
+
 **Web**
 
 ```bash
@@ -38,7 +40,22 @@ dsh plugin --profile web remove dsh-preset-codex
 dsh plugin --profile desktop remove dsh-preset-codex
 ```
 
-bundle 的 patch 在启动时合成：改 bundle 里的 YAML 要重启才生效。新装时 `dsh plugin add` 会改写 profile 的 `dsh.profile.bundles`，开着 HMR 的 web profile 会因此触发一次重新组合，有可能免重启就出现；重启 dsh、重新打开 Desktop 仍是稳妥做法。
+bundle 的 patch 只在启动时合成为入口列表：新装、改 bundle 里的 YAML、升级版本，都要重启 dsh（Desktop 重新打开）才生效。`dsh plugin add` 会改写 profile 的 `dsh.profile.bundles`，但这不会触发 bundle 层的重新合成。
+
+## 预设说明
+
+Codex 模式把一套工程纪律压进系统提示词，改变的是行为而不是能力：动手前先读仓库的布局、约定和构建测试命令；过程中用短句说明在做什么、发现了什么，闷头连调工具时用户也跟得上；出问题追到根因，不用重试或兜底掩盖；改动贴着周边代码，不做顺手重构；交付时说清改了什么、怎么验证的、哪条路还没验。工具面与 `standard` 几乎相同（差别只有三处，见下节，其中只有两处改变运行行为），所以它的不同几乎全部来自提示词。
+
+**适合**：在真实仓库里做多文件改动、排查缺陷、补测试、做代码审查，以及需要连续跑很多步的长任务。
+
+**不适合**：需要边跑边改 DSH 自身插件与配置的任务——那类工作用「创造模式」，本预设刻意不带 `tool-plugin-manager` 与 `tool-plugin-market`。
+
+## 如何使用
+
+1. 装完并重启 dsh，打开 **设置 → Agent 预设**，在「自定义」分组里找到 **Codex** 卡片：卡片上就是它的名字和一句话说明。
+2. **想让它成为默认**：点这张卡片，状态变成「新任务默认」，之后新建的任务都用它。点回「标准模式」即可恢复。
+3. **只想这一次用它**：新建任务时，在预设选择器里选 Codex，这个任务用它，不改默认值。
+4. 预设随任务确定：卡片和选择器都只作用于「接下来创建的任务」，已经在跑的会话不受影响；会话跑起来之后也不能中途换，要换只能新建任务。
 
 ## 预设内容
 
@@ -47,6 +64,8 @@ bundle 的 patch 在启动时合成：改 bundle 里的 YAML 要重启才生效�
 - `persona`：Codex 风格的身份、工作方式与交付格式
 - `tool-todo`：`allowParallelInProgress: false`，同一时刻只有一个进行中
 - 去掉 `tool-plugin-manager` 与 `tool-plugin-market`：编码 Agent 不该顺手改自己的运行时
+
+最后一条与 `standard` 的差别只在写法：`standard` 也把这两行标成 `disabled: true`，运行效果相同。所以真正改变行为的只有前两条。
 
 ## 目录结构
 

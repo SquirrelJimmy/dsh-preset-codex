@@ -120,3 +120,44 @@ test('发版前会先跑构建校验与测试', () => {
   assert.match(pkg.scripts.prepublishOnly, /build\.mjs --check/);
   assert.match(pkg.scripts.prepublishOnly, /--test/);
 });
+
+/** 从产物里取回块标量的正文，用来验证注入没有改写内容。 */
+function blockScalar(name) {
+  const lines = artifact.split('\n');
+  const start = lines.findIndex((line) => new RegExp(`^ *${name}: \\|$`).test(line));
+  assert.notEqual(start, -1, `产物里找不到 ${name}: |`);
+  const indent = lines[start].match(/^ */)[0].length + 2;
+  const body = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (line.trim() === '') {
+      body.push('');
+      continue;
+    }
+    if (line.match(/^ */)[0].length < indent) break;
+    body.push(line.slice(indent));
+  }
+  return body.join('\n').replace(/[\s\uFEFF]+$/, '');
+}
+
+test('注入的 persona 与源文件逐字一致', () => {
+  for (const name of ['prefix', 'suffix']) {
+    const source = read(`src/persona/${name}.md`)
+      .replace(/\r\n/g, '\n')
+      .replace(/[\s\uFEFF]+$/, '');
+    assert.equal(blockScalar(name), source, `${name} 注入后与源文件不一致`);
+  }
+});
+
+const persona = ['prefix', 'suffix'].map((name) => read(`src/persona/${name}.md`)).join('\n');
+
+test('persona 不引用上游专有工具名', () => {
+  for (const token of ['apply_patch', 'update_plan', 'multi_tool_use']) {
+    assert.ok(!persona.includes(token), `persona 里仍有上游工具名 ${token}`);
+  }
+});
+
+test('persona 词数不超过预算', () => {
+  const words = persona.split(/\s+/).filter(Boolean).length;
+  assert.ok(words <= 2000, `persona 有 ${words} 词，超出 2000 的预算`);
+});
