@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -160,4 +160,44 @@ test('persona 不引用上游专有工具名', () => {
 test('persona 词数不超过预算', () => {
   const words = persona.split(/\s+/).filter(Boolean).length;
   assert.ok(words <= 2000, `persona 有 ${words} 词，超出 2000 的预算`);
+});
+
+/** 已安装的 dsh 根目录；找不到就跳过解析检查（仓库本身零依赖，不假定 dsh 在哪）。 */
+function installedDshRoot() {
+  const candidates = [process.env.DSH_INSTALL_ROOT];
+  try {
+    const prefix = execFileSync('npm', ['root', '-g'], { encoding: 'utf8' }).trim();
+    candidates.push(path.join(prefix, '@deepseek-ai', 'dsh'));
+  } catch {}
+  candidates.push(path.join(path.dirname(process.execPath), '..', 'lib', 'node_modules', '@deepseek-ai', 'dsh'));
+  return candidates.find((dir) => dir && existsSync(path.join(dir, 'package.json')));
+}
+
+/** '@scope/pkg/sub' → ['@scope/pkg', 'sub']；'@scope/pkg' → ['@scope/pkg', '']。 */
+function splitSpecifier(name) {
+  const parts = name.split('/');
+  return name.startsWith('@')
+    ? [parts.slice(0, 2).join('/'), parts.slice(2).join('/')]
+    : [parts[0], parts.slice(1).join('/')];
+}
+
+test('插件名在已安装的 dsh 中可解析', (t) => {
+  const dshRoot = installedDshRoot();
+  if (!dshRoot) return t.skip('未找到已安装的 dsh');
+  const version = JSON.parse(readFileSync(path.join(dshRoot, 'package.json'), 'utf8')).version;
+  const names = [...new Set([...artifact.matchAll(/name: '([^']+)'/g)].map((m) => m[1]))]
+    .filter((name) => name !== 'cordis:group');
+  const missing = [];
+  for (const name of names) {
+    const [pkgName, sub] = splitSpecifier(name);
+    const manifest = path.join(dshRoot, 'node_modules', pkgName, 'package.json');
+    if (!existsSync(manifest)) {
+      missing.push(`${name}（包不存在）`);
+      continue;
+    }
+    if (!sub) continue;
+    const { exports: ex } = JSON.parse(readFileSync(manifest, 'utf8'));
+    if (!ex || !ex[`./${sub}`]) missing.push(`${name}（exports 里没有 ./${sub}）`);
+  }
+  assert.deepEqual(missing, [], `dsh ${version} 中解析失败`);
 });
