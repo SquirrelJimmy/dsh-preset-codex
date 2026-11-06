@@ -18,12 +18,14 @@
   "exports": {
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./plugins/*.js": "./plugins/*.js"
   },
   "files": [
     "cordis.patch.yml",
     "locale/*.json",
-    "icon.svg"
+    "icon.svg",
+    "plugins/*.js"
   ],
   "scripts": {
     "build": "node scripts/build.mjs",

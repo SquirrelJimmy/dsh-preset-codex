@@ -23,7 +23,7 @@
 | AGENTS.md 五条细则 | 替换 | 开头第二段一句「指令文件对其作用域有约束力」；细则由 `dsh-agent-instructions` 的 reminder 承担 |
 | Autonomy and Persistence（做完再交） | 保留 | §How to work「Finish the job inside the turn」 |
 | 默认直接改代码，不交方案 | 保留 | §How to work「Proceed on reversible work」 |
-| Planning（`update_plan`、恰好一个 `in_progress`、不重复计划、简单任务不计划） | 替换 | §Planning：改用 `todo_write`；状态机在工具描述里已写，这里保留判断 |
+| Planning（`update_plan`、恰好一个 `in_progress`、不重复计划、简单任务不计划） | 替换 | §Planning：改用 `todo_write`；保留判断，并明确要求完成一步立即标 `completed`、最终答复前收尾整个清单；`todo-reminder` 插件负责把完整清单回显给模型并定期提醒 |
 | 计划的好/坏示例 | 保留 | §Planning：2 好 2 坏，例改成 DSH 原生写法（指名文件或命令） |
 | 并行工具调用（`multi_tool_use.parallel`） | 替换 | §Planning：同一条消息里并发互不依赖的调用 |
 | 优先 `rg` / `rg --files` | 替换 + 划边界 | §Searching：grep/glob 工具内置 ripgrep，「比 grep 快」不成立；工具优先，rg 补高级 flag；glob 含 ignored/hidden 而 grep 不含 |

@@ -117,6 +117,10 @@
             name: '@deepseek-ai/dsh-tool-todo'
             config:
               allowParallelInProgress: false
+          - id: todo-reminder
+            name: 'dsh-preset-codex/plugins/todo-reminder.js'
+            config:
+              remindEvery: 4
           - id: tool-web
             name: '@deepseek-ai/dsh-tool-web'
             config:

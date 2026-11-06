@@ -22,14 +22,14 @@
 | 图标 | `icon.svg`（≤256 KiB） |
 | 发版 | `package.json` 的 `version` 递增，`npm test` 与 `npm pack --dry-run` 通过 |
 
-插件列表刻意与 `standard` 保持同构，只差三处：`persona` 换成 Codex 文本、`tool-todo` 串行化、去掉 `tool-plugin-manager` 与 `tool-plugin-market`。新增差异前先想清楚是否真的需要——每多一处偏离，升级时都要多修一处。
+插件列表刻意与 `standard` 保持同构，只差四处：`persona` 换成 Codex 文本、`tool-todo` 串行化、加入本地 `todo-reminder` 插件、去掉 `tool-plugin-manager` 与 `tool-plugin-market`。新增差异前先想清楚是否真的需要——每多一处偏离，升级时都要多修一处。
 
 ## 提交前校验
 
 ```bash
 node scripts/build.mjs --check    # 产物与源码一致
 npm test                          # 产物新鲜度、预设行、文案一致性、manifest 契约
-npm pack --dry-run                # 产物应只有 7 个文件（含自动附带的 LICENSE）
+npm pack --dry-run                # 产物应只有 8 个文件（含自动附带的 LICENSE）
 ```
 
 若默认缓存目录不可写导致 `npm` 报 EACCES，给 `--cache` 指一个可写目录即可。

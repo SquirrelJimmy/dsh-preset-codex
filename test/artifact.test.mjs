@@ -31,6 +31,7 @@ const EXPECTED_PLUGINS = [
   'delegation',
   'tool-ask-user',
   'tool-todo',
+  'todo-reminder',
   'tool-web',
   'present',
 ];
@@ -66,10 +67,19 @@ test('persona 占位符已被替换成正文', () => {
   assert.match(artifact, /Then stop/);
 });
 
-test('三处与 standard 的刻意差异仍在', () => {
+test('四处与 standard 的刻意差异仍在', () => {
   assert.match(artifact, /^ {14}allowParallelInProgress: false$/m);
+  assert.match(artifact, /^ {12}name: 'dsh-preset-codex\/plugins\/todo-reminder\.js'$/m);
   assert.ok(!artifact.includes('dsh-tool-plugin-manager'));
   assert.ok(!artifact.includes('dsh-tool-plugin-market'));
+});
+
+test('本地 todo 提醒插件随包发布且可加载', async () => {
+  assert.ok(existsSync(path.join(root, 'plugins/todo-reminder.js')));
+  assert.ok(pkg.files.includes('plugins/*.js'));
+  assert.ok('./plugins/*.js' in pkg.exports);
+  const plugin = await import(`${pkg.name}/plugins/todo-reminder.js`);
+  assert.equal(typeof plugin.apply, 'function');
 });
 
 test('locale 覆盖同一组语言，且 meta 字段非空', () => {
@@ -186,7 +196,9 @@ test('插件名在已安装的 dsh 中可解析', (t) => {
   if (!dshRoot) return t.skip('未找到已安装的 dsh');
   const version = JSON.parse(readFileSync(path.join(dshRoot, 'package.json'), 'utf8')).version;
   const names = [...new Set([...artifact.matchAll(/name: '([^']+)'/g)].map((m) => m[1]))]
-    .filter((name) => name !== 'cordis:group');
+    .filter((name) => name !== 'cordis:group')
+    .filter((name) => !name.startsWith('.') && !path.isAbsolute(name))
+    .filter((name) => name !== `${pkg.name}/plugins/todo-reminder.js`);
   const missing = [];
   for (const name of names) {
     const [pkgName, sub] = splitSpecifier(name);
