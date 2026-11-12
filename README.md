@@ -44,7 +44,7 @@ bundle 的 patch 只在启动时合成为入口列表：新装、改 bundle 里�
 
 ## 预设说明
 
-Codex 模式把一套工程纪律压进系统提示词，改变的是行为而不是能力：动手前先读仓库的布局、约定和构建测试命令；过程中用短句说明在做什么、发现了什么，闷头连调工具时用户也跟得上；出问题追到根因，不用重试或兜底掩盖；改动贴着周边代码，不做顺手重构；交付时说清改了什么、怎么验证的、哪条路还没验。工具面与 `standard` 几乎相同（差别只有四处，见下节，其中三处改变运行行为），所以它的不同几乎全部来自提示词和这个本地提醒插件。
+Codex 模式把一套工程纪律压进系统提示词，改变的是行为而不是能力：动手前先读仓库的布局、约定和构建测试命令；过程中用短句说明在做什么、发现了什么，闷头连调工具时用户也跟得上；出问题追到根因，不用重试或兜底掩盖；改动贴着周边代码，不做顺手重构；交付时说清改了什么、怎么验证的、哪条路还没验。提示词以 `gpt-6.1-sol` 的 `instructions_template` 为唯一蓝本，旧 5.x prompt 只作 DSH 缺口补丁参考。工具面与 `standard` 几乎相同（差别只有四处，见下节，其中三处改变运行行为），所以它的不同几乎全部来自提示词和这个本地提醒插件。
 
 **适合**：在真实仓库里做多文件改动、排查缺陷、补测试、做代码审查，以及需要连续跑很多步的长任务。
 
@@ -59,7 +59,7 @@ Codex 模式把一套工程纪律压进系统提示词，改变的是行为而�
 
 ## 预设内容
 
-21 条插件行，与 dsh 自带的 `standard` 预设同构，只改四处：
+22 条插件行，与 dsh 自带的 `standard` 预设同构，只改四处：
 
 - `persona`：Codex 风格的身份、工作方式与交付格式
 - `tool-todo`：`allowParallelInProgress: false`，同一时刻只有一个进行中
@@ -82,10 +82,11 @@ Codex 模式把一套工程纪律压进系统提示词，改变的是行为而�
 ├─ src/
 │  ├─ preset.template.yml   # 源码：预设骨架 + 两个 persona 占位符
 │  └─ persona/{prefix,suffix}.md
-├─ test/artifact.test.mjs   # 零依赖测试：产物新鲜度、预设行、元数据契约
+├─ test/{artifact,upstream}.test.mjs # 零依赖测试：产物新鲜度、预设行、元数据契约、同步映射
 ├─ reference/codex/         # 上游提示词存档（不参与构建、不进包）
+├─ reference/upstream.json  # 上次同步的上游提交与文件清单
 ├─ docs/adaptation.md       # 与上游的逐条映射
-└─ scripts/build.mjs        # 零依赖构建
+└─ scripts/{build,sync-upstream}.mjs # 零依赖构建 / 上游提示词同步
 ```
 
 ## 构建
@@ -99,6 +100,18 @@ npm test                         # 产物新鲜度 + 预设行 + 元数据契约
 构建只做占位符替换：读 `src/persona/*.md`，以 YAML 块标量（`|`）写进模板。不解析 YAML、无第三方依赖，产物可逐字节复现。
 
 **改提示词只改 `src/persona/*.md`，然后重新构建。**
+
+## 跟踪上游
+
+`reference/codex/` 是从 `openai/codex` 按需拉取的提示词快照，不参与构建，也不进 npm 包。同步脚本只用 Node 内置模块和系统 `git`，首次会把目录树缓存到 `.cache/codex-upstream/`（已 gitignore）。
+
+```bash
+npm run upstream:check              # 拉取上游最新提交，只报告差异；有差异退出码 1
+npm run upstream:sync               # 把差异写入 reference/codex/，并更新 reference/upstream.json
+npm run upstream:sync -- --ref <sha> # 指定分支、标签或提交
+```
+
+需要删除上游已移除、且上次同步过的旧文件时，给同步命令加 `--prune`。
 
 ## 本地化
 

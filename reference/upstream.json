@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "repository": "https://github.com/openai/codex.git",
+  "ref": "main",
+  "commit": "c0cc9fc820f62e4dbdde68214dd6d792d6c8a7ee",
+  "files": {
+    "reference/codex/base_instructions/default.md": {
+      "upstream": "codex-rs/protocol/src/prompts/base_instructions/default.md",
+      "sha256": "ac8ae107a0d72fe3476b430afb161ea4e67da2e446d778aefc44828160559807",
+      "bytes": 20903
+    },
+    "reference/codex/compact/prompt.md": {
+      "upstream": "codex-rs/prompts/templates/compact/prompt.md",
+      "sha256": "ab0c334d4faca17e3afbb9b16967c1b2fdcc7242a9a0880af57949fa236d6d07",
+      "bytes": 426
+    },
+    "reference/codex/compact/summary_prefix.md": {
+      "upstream": "codex-rs/prompts/templates/compact/summary_prefix.md",
+      "sha256": "e9b088e794a6bb9082ac053fcc760bd818d7e720ee4bcdc72c6e480de7b7cb0e",
+      "bytes": 399
+    },
+    "reference/codex/gpt-5.1-codex-max_prompt.md": {
+      "upstream": "codex-rs/core/gpt-5.1-codex-max_prompt.md",
+      "sha256": "1b3dd697043a7f613c691a3721a450251626685b3e97ac3ad3d35ea62758a31e",
+      "bytes": 7589
+    },
+    "reference/codex/gpt-5.2-codex_prompt.md": {
+      "upstream": "codex-rs/core/gpt-5.2-codex_prompt.md",
+      "sha256": "1b3dd697043a7f613c691a3721a450251626685b3e97ac3ad3d35ea62758a31e",
+      "bytes": 7589
+    },
+    "reference/codex/gpt_5_1_prompt.md": {
+      "upstream": "codex-rs/core/gpt_5_1_prompt.md",
+      "sha256": "b59d4cf7a17350eee7fe00c897bf7da7454672788317f23f54d2fb3d57af7bca",
+      "bytes": 24204
+    },
+    "reference/codex/gpt_5_2_prompt.md": {
+      "upstream": "codex-rs/core/gpt_5_2_prompt.md",
+      "sha256": "415333a461404a790c981fb00a7b9dc73b1906d3f87133dc8afe7ed77e92bd67",
+      "bytes": 21652
+    },
+    "reference/codex/gpt_5_codex_prompt.md": {
+      "upstream": "codex-rs/core/gpt_5_codex_prompt.md",
+      "sha256": "42842be69650ae563d212695e8d3f3591534908fd8ca33b63f742daf41f88b65",
+      "bytes": 6647
+    },
+    "reference/codex/guardian/classifier_instructions.md": {
+      "upstream": "codex-rs/prompts/templates/guardian/classifier_instructions.md",
+      "sha256": "52485dcc1856e6d33697b0bee0d57b7af5bcc0cd2f64be0dc6b3505d56549aef",
+      "bytes": 10351
+    },
+    "reference/codex/guardian/node_repl_policy.md": {
+      "upstream": "codex-rs/prompts/templates/guardian/node_repl_policy.md",
+      "sha256": "e5d12bc2404640513aba2df9dcc5689d2f0280191fe3508c55570ea0764d13a0",
+      "bytes": 2860
+    },
+    "reference/codex/guardian/policy.md": {
+      "upstream": "codex-rs/prompts/templates/guardian/policy.md",
+      "sha256": "e6b0cf0a2e1c4cabc0a37ac2a0bc424ddd7c89e85d049e32d281a8db6e8d3ce6",
+      "bytes": 8281
+    },
+    "reference/codex/guardian/policy_template.md": {
+      "upstream": "codex-rs/prompts/templates/guardian/policy_template.md",
+      "sha256": "14cdb20e67bff950825da3666ab5fab3b740a7896abcc3ef6194bc65a869cd4d",
+      "bytes": 9614
+    },
+    "reference/codex/models-manager/models.json": {
+      "upstream": "codex-rs/models-manager/models.json",
+      "sha256": "1384625c0b6b3e67d3c60da29becea2b017f2c283fc1e2d05b8edafb4698eb10",
+      "bytes": 539696
+    },
+    "reference/codex/models-manager/prompt.md": {
+      "upstream": "codex-rs/models-manager/prompt.md",
+      "sha256": "ac8ae107a0d72fe3476b430afb161ea4e67da2e446d778aefc44828160559807",
+      "bytes": 20903
+    },
+    "reference/codex/permissions/approval_policy/never.md": {
+      "upstream": "codex-rs/prompts/templates/permissions/approval_policy/never.md",
+      "sha256": "41c7931bac2391a24046362bd07615d5a3e73dca4672b911516fac99646be8c4",
+      "bytes": 120
+    },
+    "reference/codex/permissions/approval_policy/on_request.md": {
+      "upstream": "codex-rs/prompts/templates/permissions/approval_policy/on_request.md",
+      "sha256": "85541a9738741407642b3c39bbe3781fbf8bb42f628d50e562c87738ab192b3a",
+      "bytes": 3661
+    },
+    "reference/codex/permissions/approval_policy/on_request_rule_request_permission.md": {
+      "upstream": "codex-rs/prompts/templates/permissions/approval_policy/on_request_rule_request_permission.md",
+      "sha256": "98e8a78ac869d64fb094fb1a12e20e327e46a159bf74022c588b84326bf6afba",
+      "bytes": 1725
+    },
+    "reference/codex/permissions/approval_policy/unless_trusted.md": {
+      "upstream": "codex-rs/prompts/templates/permissions/approval_policy/unless_trusted.md",
+      "sha256": "fadec1a060a758b805f227bc5715c7dd3d7d7e2015bd5020c386eca0f3293d10",
+      "bytes": 152
+    },
+    "reference/codex/permissions/approved_prefixes.md": {
+      "upstream": "codex-rs/prompts/templates/permissions/approved_prefixes.md",
+      "sha256": "2d37f635b9800903992a94062804e82ad10b9e7ee5c2d904b38c66c0717a217f",
+      "bytes": 108
+    },
+    "reference/codex/permissions/sandbox_mode/danger_full_access.md": {
+      "upstream": "codex-rs/prompts/templates/permissions/sandbox_mode/danger_full_access.md",
+      "sha256": "0d887cb1eaba21a6cade67ab958a6ffee00f671c46f8cf29c83706e397942dbf",
+      "bytes": 201
+    },
+    "reference/codex/permissions/sandbox_mode/read_only.md": {
+      "upstream": "codex-rs/prompts/templates/permissions/sandbox_mode/read_only.md",
+      "sha256": "509b39f88e6a4f5cb36485ea8b340680c03f27175ba20200b823ec07bc79668d",
+      "bytes": 177
+    },
+    "reference/codex/permissions/sandbox_mode/workspace_write.md": {
+      "upstream": "codex-rs/prompts/templates/permissions/sandbox_mode/workspace_write.md",
+      "sha256": "763661195d613a48173638af6227d480d70ab0a6898d3a81ff075155e82f7555",
+      "bytes": 281
+    },
+    "reference/codex/persistent_mode.md": {
+      "upstream": "codex-rs/prompts/templates/persistent_mode.md",
+      "sha256": "03ff9da48abb85425514c42dad1b742312bc7e2d978d2941e9d2fd90560c2a27",
+      "bytes": 3376
+    },
+    "reference/codex/realtime/backend_prompt.md": {
+      "upstream": "codex-rs/prompts/templates/realtime/backend_prompt.md",
+      "sha256": "94c279f8b40900e5f2ace13db09bc096ccc99cc72ffb051a126f98df94c6997d",
+      "bytes": 4913
+    },
+    "reference/codex/realtime/realtime_end.md": {
+      "upstream": "codex-rs/prompts/templates/realtime/realtime_end.md",
+      "sha256": "95dbde1501871117f96d45f95cb501abbbc25464eab1ae5ed689e110e1849036",
+      "bytes": 223
+    },
+    "reference/codex/realtime/realtime_start.md": {
+      "upstream": "codex-rs/prompts/templates/realtime/realtime_start.md",
+      "sha256": "424ebda35f115edff812596b70d7bf56431e7917b7398ccb4abb270b67a50fc2",
+      "bytes": 796
+    },
+    "reference/codex/review/exit_interrupted.xml": {
+      "upstream": "codex-rs/prompts/templates/review/exit_interrupted.xml",
+      "sha256": "034191c75f15338861ce0be2fcf28855833fc5f601b387cbc3c764032507dc86",
+      "bytes": 264
+    },
+    "reference/codex/review/exit_success.xml": {
+      "upstream": "codex-rs/prompts/templates/review/exit_success.xml",
+      "sha256": "87ce1bcbc0f1aee3fcba4fedd35775eccf4a640352b071ead206d0b4ff286559",
+      "bytes": 247
+    },
+    "reference/codex/review/rubric.md": {
+      "upstream": "codex-rs/prompts/templates/review/rubric.md",
+      "sha256": "ec60e7f36a1d1c2679ce095c0205ecc56f7dd8fb57707a13ef362072390f219f",
+      "bytes": 7685
+    }
+  }
+}

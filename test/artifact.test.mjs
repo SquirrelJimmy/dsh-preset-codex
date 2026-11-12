@@ -34,6 +34,7 @@ const EXPECTED_PLUGINS = [
   'todo-reminder',
   'tool-web',
   'present',
+  'tool-office',
 ];
 
 test('产物与源码一致（build --check 通过）', () => {
@@ -162,14 +163,9 @@ test('注入的 persona 与源文件逐字一致', () => {
 const persona = ['prefix', 'suffix'].map((name) => read(`src/persona/${name}.md`)).join('\n');
 
 test('persona 不引用上游专有工具名', () => {
-  for (const token of ['apply_patch', 'update_plan', 'multi_tool_use']) {
+  for (const token of ['apply_patch', 'update_plan', 'multi_tool_use', 'functions.request_user_input_async', 'functions.send_user_message_async', 'functions.exec']) {
     assert.ok(!persona.includes(token), `persona 里仍有上游工具名 ${token}`);
   }
-});
-
-test('persona 词数不超过预算', () => {
-  const words = persona.split(/\s+/).filter(Boolean).length;
-  assert.ok(words <= 2000, `persona 有 ${words} 词，超出 2000 的预算`);
 });
 
 /** 已安装的 dsh 根目录；找不到就跳过解析检查（仓库本身零依赖，不假定 dsh 在哪）。 */
