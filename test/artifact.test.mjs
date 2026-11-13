@@ -80,11 +80,22 @@ test('五处与 standard 的刻意差异仍在', () => {
 test('本地插件随包发布且可加载', async () => {
   assert.ok(pkg.files.includes('plugins/*.js'));
   assert.ok('./plugins/*.js' in pkg.exports);
-  for (const plugin of ['todo-reminder', 'commentary-nudge']) {
+  for (const plugin of ['todo-reminder', 'commentary-nudge', 'computer-use']) {
     assert.ok(existsSync(path.join(root, `plugins/${plugin}.js`)), `缺少 plugins/${plugin}.js`);
     const mod = await import(`${pkg.name}/plugins/${plugin}.js`);
     assert.equal(typeof mod.apply, 'function', `${plugin} 没有导出 apply`);
   }
+});
+
+test('bundle 内置默认关闭的 Computer Use 组件', () => {
+  assert.match(artifact, /^ {4}- id: computer-use$/m);
+  assert.match(artifact, /^ {6}name: 'dsh-preset-codex\/plugins\/computer-use\.js'$/m);
+  assert.match(artifact, /^ {6}disabled: true$/m);
+});
+
+test('Computer Use 依赖声明完整', () => {
+  assert.match(pkg.dependencies['@deepseek-ai/dsh-computer-use'], /\^0\.2\.2-rc\.1/);
+  assert.match(pkg.optionalDependencies['@deepseek-ai/dsh-experimental-cua-macos'], /\^0\.2\.2-rc\.1/);
 });
 
 test('locale 覆盖同一组语言，且 meta 字段非空', () => {

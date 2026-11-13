@@ -1,6 +1,0 @@
-# 覆盖官方 Computer Use 组合包插入的同 id 行。
-# 不能加 insert：这里只改变已有 provider 的 agentPreset。
-- id: cua
-  name: '@deepseek-ai/dsh-experimental-cua-macos'
-  config:
-    agentPreset: false

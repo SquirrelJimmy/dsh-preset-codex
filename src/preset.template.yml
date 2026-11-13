@@ -139,4 +139,7 @@
             name: '@deepseek-ai/dsh-tool-present'
           - id: tool-office
             name: '@deepseek-ai/dsh-tool-office'
+    - id: computer-use
+      name: 'dsh-preset-codex/plugins/computer-use.js'
+      disabled: true
 

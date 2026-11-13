@@ -44,18 +44,14 @@ bundle 的 patch 只在启动时合成为入口列表：新装、改 bundle 里�
 
 ## Computer Use（可选，仅 macOS）
 
-官方 Computer Use 组合包默认只把 `cua` 工具绑定到 `ptc` 预设。要让 Codex 预设也能用，同时保留 PTC 的能力，使用本仓库的 `cua/` 扩展包（包名 `dsh-preset-codex-cua`）：
+本 bundle 在插件详情页内置一个默认关闭的 Computer Use 组件 `dsh-preset-codex/plugins/computer-use.js`。macOS 上打开它后，会挂载官方 macOS provider，并以 `agentPreset: false` 注册，因此 Codex 预设和 PTC 预设都能使用 `cua` 工具与指引；关闭组件后 provider 和工具一并卸载。
 
-1. 先打开 **设置 → 插件**，启用官方 **Computer Use**，按提示完成辅助功能与屏幕录制授权。
-2. **完全退出** Desktop，安装扩展包：
+1. 安装本 bundle 后重启 dsh（Desktop 重新打开）。
+2. 打开 **设置 → 插件**，进入 `dsh-preset-codex` 详情页，在「包含的组件」里打开 `dsh-preset-codex/plugins/computer-use.js`。
+3. 首次使用按系统提示完成辅助功能与屏幕录制授权。
+4. 官方 **Computer Use** 组合包不要同时启用：两者注册同一个独占 provider；如果已经启用，先关闭官方组合包，再打开本组件。
 
-   ```bash
-   dsh plugin --profile desktop add /path/to/dsh-preset-codex/cua
-   ```
-
-   发布到 npm 后可改用 `dsh plugin --profile desktop add dsh-preset-codex-cua`。
-3. 重新打开 Desktop，在插件页打开 **Codex 电脑操作**。开启时所有 Agent 预设（Codex 与 PTC）都能使用 Computer Use；关闭后恢复为仅 PTC 可用。
-4. 如果之后关闭并重新启用官方 Computer Use，需要把本扩展包也关一次再开，确保它排在官方包之后；详细的覆盖顺序与 `allowedApps` 写法见 [cua/README.md](cua/README.md)。
+非 macOS 上组件行仍会显示，但打开后不会加载 provider。当前单 bundle 方案不能按平台条件隐藏这一行。
 
 ## 预设说明
 
@@ -102,11 +98,11 @@ DSH 没有原生 commentary 通道，插件只能检查同一条 assistant messa
 ├─ locale/{en,zh}.json      # 插件卡片的 meta.title / meta.description
 ├─ plugins/todo-reminder.js # 本地提醒插件：todo 清单回显与定期提醒
 ├─ plugins/commentary-nudge.js # 本地插件：批次后播报提醒；缺正文时在批末注入 notice，不拦截
-├─ cua/                     # 可选 macOS Computer Use 扩展包（独立安装）
+├─ plugins/computer-use.js  # 本地插件：macOS Computer Use 开关，默认关闭，挂官方 provider
 ├─ src/
 │  ├─ preset.template.yml   # 源码：预设骨架 + 两个 persona 占位符
 │  └─ persona/{prefix,suffix}.md
-├─ test/{artifact,commentary-nudge,cua-bundle,todo-reminder,upstream}.test.mjs # 零依赖测试：产物新鲜度、预设行、元数据契约、插件行为、同步映射
+├─ test/{artifact,commentary-nudge,todo-reminder,upstream}.test.mjs # 零依赖测试：产物新鲜度、预设行、元数据契约、插件行为、同步映射
 ├─ reference/codex/         # 上游提示词存档（不参与构建、不进包）
 ├─ reference/upstream.json  # 上次同步的上游提交与文件清单
 ├─ docs/adaptation.md       # 与上游的逐条映射

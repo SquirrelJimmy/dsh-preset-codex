@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Codex 电脑操作",
-    "description": "仅 macOS。需先启用官方 Computer Use 组合包。开启后 Codex 与 PTC 等所有 Agent 预设都能使用 Computer Use；关闭后恢复仅 PTC 可用。"
-  }
-}
