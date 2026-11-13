@@ -4,3 +4,7 @@ node_modules/
 *.log
 .npm/
 .cache/
+
+# Local session evidence; keep out of the bundle.
+codex-work.md
+dsh-work.md
