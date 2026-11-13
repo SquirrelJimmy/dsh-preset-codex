@@ -46,6 +46,7 @@
 | --- | --- | --- |
 | 身份声明（GPT-5 in Codex CLI） | 替换 | 开头身份段：DSH + `{{model}}`，并说明 Codex 是 profile 名，不是另一个产品 |
 | Working with the user 的提问三段（可推断就不问、可选澄清约 60 秒后按声明假设推进、必须答复时挂起且不推进依赖分支） | 保留 + 替换 | §Permission and approval：`request_user_input_async` 换成 `ask_user_question`，三档判定逐条对译（含「多个问题合并成一次调用」「优先多选」「Elapsed time is not an answer」），提问次数不设上限，按真决策的个数走；判定里不再加本地分支，「不要把它写成假设」由基线「keep the question pending」覆盖 |
+| 基线 `# When to ask the user for permission` P4：read-only actions 不需要许可 | 新增本地覆盖 | §Permission and approval / §Searching and reading：只读不等于无边界；大范围读取和隐私敏感目录必须先申请。基线没有该限制，这是本预设的有意安全边界，不是漏抄。 |
 | Autonomy and persistence（行动优先、任务不清也推进、compaction 不结束任务） | 保留 | §Autonomy and persistence |
 | Personality / Writing style（curious/thoughtful/lucid/warm/candid；plain language、主动语态、避免 AI slop 与 `X, not Y`） | 保留 + 收紧 | §Communicating 与 suffix §Reporting |
 | Technical communication（先 outcome 再 reasoning；what/why/test/risk） | 保留 | §Communicating 与 suffix §Reporting |
@@ -94,6 +95,7 @@
 | `commentary-nudge` 改为批次后软提醒 | Codex 有独立 commentary 通道，DSH 只有「挂在工具调用上的正文」：把频率交给模型自觉时，长任务里会退化成整段沉默。硬前置拦截会把缺失播报变成用户可见的工具错误，体感不可接受；插件改为在 `tools/post-execute` 检查当前用户可见的 root tool batch 的 owning assistant message，如果第一个 tool-call 之前没有非空 text，就在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。不拦工具、不出错误行、不设定时器；`exit_plan_mode`、`ask_user_question`、`compress`、`wait_agent` 和 nested call 跳过；同一段沉默最多提醒一次，出现可见正文或进入新 turn 后重置。代价是第一批可能已经在没有正文的情况下执行完，notice 只能作用于下一批；真正的解法是 DSH core 的 commentary phase。session 读取失败、找不到 owning message 时不注入 |
 | 提问判定保持基线原文 | 初版在本地加过两条判定（「弱化项目自设闸门需批准」「计划审批不等于回答」），证据是一次 Jotai 评估里模型两次写「需用户拍板」（`dsh-work.md:4231`、`dsh-work.md:6596`）却没问。复盘发现漂移来自本地自造的「Ask once」和五段清单把基线的三档判定压窄了；删掉自造条款、回到基线原文（含「keep the question pending」）后，判定不需要枚举闸门种类，也不会因为「可逆」把用户的选择降级成假设。本次只在计划层补一条通用澄清：会改变开始时间、成本、风险、范围或需要策略例外的选择属于用户，写计划前先问；它不是恢复「Ask once」，也不改变基线的三档判定 |
 | 计划是决策文档，不是证据堆放 | 一次 Jotai 评估里，计划写了 10,337 字符仍在「先升 3.0.1 还是等 7 天」上替用户拍板；另一侧 Codex 用 2,700 字符先问后写。suffix §Writing plans 要求：仍有用户决定时，第一屏是该决定（选项、推荐、影响）；assumption 只放未能验证的事实；按改动面分组、证据压成一张表、结尾写边界与回滚；不设字数与固定小节名 |
+| 大范围读取/隐私目录审批 | 全盘搜索会跨出工作区、挂载盘和其他用户目录，既可能泄露隐私，也造成不必要的资源消耗；本预设用一条本地规则覆盖基线的“只读免批准”，要求先说明根目录、用途和边界并征得同意。 |
 
 ## 为什么不自动转换
 

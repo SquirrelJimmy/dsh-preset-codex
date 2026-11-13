@@ -49,7 +49,7 @@ bundle 的 patch 只在启动时合成为入口列表：新装、改 bundle 里�
 1. 安装本 bundle 后重启 dsh（Desktop 重新打开）。
 2. 打开 **设置 → 插件**，进入 `dsh-preset-codex` 详情页，在「包含的组件」里打开 `dsh-preset-codex/plugins/computer-use.js`。
 3. 首次使用按系统提示完成辅助功能与屏幕录制授权。
-4. 官方 **Computer Use** 组合包不要同时启用：两者注册同一个独占 provider；如果已经启用，先关闭官方组合包，再打开本组件。
+4. 官方 **Computer Use** 组合包可以保持启用：打开本组件时会先自动停用官方 macOS provider 并接管；关闭本组件后会恢复官方 provider，不需要手动来回切换。
 
 非 macOS 上组件行仍会显示，但打开后不会加载 provider。当前单 bundle 方案不能按平台条件隐藏这一行。
 

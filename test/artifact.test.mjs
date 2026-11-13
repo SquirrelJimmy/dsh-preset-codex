@@ -99,6 +99,18 @@ test('Computer Use 依赖声明完整', () => {
   assert.equal(pkg.peerDependenciesMeta['@deepseek-ai/dsh-experimental-cua-macos'].optional, true);
 });
 
+test('Computer Use 组件通过 Loader 解析 DSH 包', () => {
+  const source = read('plugins/computer-use.js');
+  assert.match(source, /const REGISTRY_PACKAGE = '@deepseek-ai\/dsh-computer-use'/);
+  assert.match(source, /const PROVIDER_PACKAGE = '@deepseek-ai\/dsh-experimental-cua-macos'/);
+  assert.match(source, /ctx\.loader\.import\(REGISTRY_PACKAGE\)/);
+  assert.match(source, /ctx\.loader\.import\(PROVIDER_PACKAGE\)/);
+  assert.ok(!/await import\('@deepseek-ai\/dsh-computer-use'\)/.test(source));
+  assert.ok(!/await import\('@deepseek-ai\/dsh-experimental-cua-macos'\)/.test(source));
+  assert.equal(pkg.dependencies, undefined);
+  assert.equal(pkg.optionalDependencies, undefined);
+});
+
 test('locale 覆盖同一组语言，且 meta 字段非空', () => {
   const languages = readdirSync(path.join(root, 'locale'))
     .filter((name) => name.endsWith('.json'))
@@ -191,6 +203,13 @@ test('播报与提问的规则不再互相打架', () => {
   assert.doesNotMatch(persona, /ask_user_question`?\s*once/, '提问被限成了「只问一次」');
   assert.match(persona, /keep the question pending/, '缺少基线「需答复时挂起」的原文');
   assert.match(persona, /60 seconds/, '缺少 60 秒播报规则');
+});
+
+test('persona 规定大范围读取和隐私敏感目录先申请', () => {
+  assert.match(persona, /Read-scope approval \(local rule\)/);
+  assert.match(persona, /privacy-sensitive directory/);
+  assert.match(persona, /ask_user_question/);
+  assert.match(persona, /Never start from `\/`/);
 });
 
 /** 已安装的 dsh 根目录；找不到就跳过解析检查（仓库本身零依赖，不假定 dsh 在哪）。 */
