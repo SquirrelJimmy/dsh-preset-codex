@@ -23,11 +23,14 @@
     "node": ">=22.19.0",
     "dsh": ">=0.2.2-rc.1"
   },
-  "dependencies": {
-    "@deepseek-ai/dsh-computer-use": "^0.2.2-rc.1"
-  },
-  "optionalDependencies": {
+  "peerDependencies": {
+    "@deepseek-ai/dsh-computer-use": "^0.2.2-rc.1",
     "@deepseek-ai/dsh-experimental-cua-macos": "^0.2.2-rc.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-experimental-cua-macos": {
+      "optional": true
+    }
   },
   "exports": {
     "./package.json": "./package.json",

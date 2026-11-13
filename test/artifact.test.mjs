@@ -94,8 +94,9 @@ test('bundle 内置默认关闭的 Computer Use 组件', () => {
 });
 
 test('Computer Use 依赖声明完整', () => {
-  assert.match(pkg.dependencies['@deepseek-ai/dsh-computer-use'], /\^0\.2\.2-rc\.1/);
-  assert.match(pkg.optionalDependencies['@deepseek-ai/dsh-experimental-cua-macos'], /\^0\.2\.2-rc\.1/);
+  assert.match(pkg.peerDependencies['@deepseek-ai/dsh-computer-use'], /\^0\.2\.2-rc\.1/);
+  assert.match(pkg.peerDependencies['@deepseek-ai/dsh-experimental-cua-macos'], /\^0\.2\.2-rc\.1/);
+  assert.equal(pkg.peerDependenciesMeta['@deepseek-ai/dsh-experimental-cua-macos'].optional, true);
 });
 
 test('locale 覆盖同一组语言，且 meta 字段非空', () => {
