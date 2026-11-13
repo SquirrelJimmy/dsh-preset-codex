@@ -1,0 +1,51 @@
+{
+  "name": "dsh-preset-codex-cua",
+  "version": "0.1.0",
+  "description": "为 DSH 的 macOS Computer Use 提供 Codex 与 PTC 共用的开关：开启后所有 Agent 预设可用，关闭后恢复仅 PTC 可用。",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SquirrelJimmy/dsh-preset-codex.git"
+  },
+  "homepage": "https://github.com/SquirrelJimmy/dsh-preset-codex#readme",
+  "bugs": {
+    "url": "https://github.com/SquirrelJimmy/dsh-preset-codex/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-bundle",
+    "computer-use",
+    "macos",
+    "codex"
+  ],
+  "engines": {
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml",
+      "platforms": [
+        "darwin"
+      ]
+    }
+  },
+  "optionalDependencies": {
+    "@deepseek-ai/dsh-experimental-cua-macos": "^0.2.2-rc.1"
+  }
+}

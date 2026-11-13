@@ -42,6 +42,21 @@ dsh plugin --profile desktop remove dsh-preset-codex
 
 bundle 的 patch 只在启动时合成为入口列表：新装、改 bundle 里的 YAML、升级版本，都要重启 dsh（Desktop 重新打开）才生效。`dsh plugin add` 会改写 profile 的 `dsh.profile.bundles`，但这不会触发 bundle 层的重新合成。
 
+## Computer Use（可选，仅 macOS）
+
+官方 Computer Use 组合包默认只把 `cua` 工具绑定到 `ptc` 预设。要让 Codex 预设也能用，同时保留 PTC 的能力，使用本仓库的 `cua/` 扩展包（包名 `dsh-preset-codex-cua`）：
+
+1. 先打开 **设置 → 插件**，启用官方 **Computer Use**，按提示完成辅助功能与屏幕录制授权。
+2. **完全退出** Desktop，安装扩展包：
+
+   ```bash
+   dsh plugin --profile desktop add /path/to/dsh-preset-codex/cua
+   ```
+
+   发布到 npm 后可改用 `dsh plugin --profile desktop add dsh-preset-codex-cua`。
+3. 重新打开 Desktop，在插件页打开 **Codex 电脑操作**。开启时所有 Agent 预设（Codex 与 PTC）都能使用 Computer Use；关闭后恢复为仅 PTC 可用。
+4. 如果之后关闭并重新启用官方 Computer Use，需要把本扩展包也关一次再开，确保它排在官方包之后；详细的覆盖顺序与 `allowedApps` 写法见 [cua/README.md](cua/README.md)。
+
 ## 预设说明
 
 Codex 模式把一套工程纪律压进系统提示词，改变的是行为而不是能力：动手前先读仓库的布局、约定和构建测试命令；过程中用短句说明在做什么、发现了什么，闷头连调工具时用户也跟得上；出问题追到根因，不用重试或兜底掩盖；改动贴着周边代码，不做顺手重构；交付时说清改了什么、怎么验证的、哪条路还没验。提示词以 `gpt-6.1-sol` 的 `instructions_template` 为唯一蓝本，旧 5.x prompt 只作 DSH 缺口补丁参考。工具面与 `standard` 几乎相同（差别只有五处，见下节，其中四处改变运行行为），所以它的不同几乎全部来自提示词和这两个本地插件。
@@ -87,10 +102,11 @@ DSH 没有原生 commentary 通道，插件只能检查同一条 assistant messa
 ├─ locale/{en,zh}.json      # 插件卡片的 meta.title / meta.description
 ├─ plugins/todo-reminder.js # 本地提醒插件：todo 清单回显与定期提醒
 ├─ plugins/commentary-nudge.js # 本地插件：批次后播报提醒；缺正文时在批末注入 notice，不拦截
+├─ cua/                     # 可选 macOS Computer Use 扩展包（独立安装）
 ├─ src/
 │  ├─ preset.template.yml   # 源码：预设骨架 + 两个 persona 占位符
 │  └─ persona/{prefix,suffix}.md
-├─ test/{artifact,commentary-nudge,todo-reminder,upstream}.test.mjs # 零依赖测试：产物新鲜度、预设行、元数据契约、插件行为、同步映射
+├─ test/{artifact,commentary-nudge,cua-bundle,todo-reminder,upstream}.test.mjs # 零依赖测试：产物新鲜度、预设行、元数据契约、插件行为、同步映射
 ├─ reference/codex/         # 上游提示词存档（不参与构建、不进包）
 ├─ reference/upstream.json  # 上次同步的上游提交与文件清单
 ├─ docs/adaptation.md       # 与上游的逐条映射

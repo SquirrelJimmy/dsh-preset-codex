@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Codex Computer Use",
+    "description": "macOS only. Requires the official Computer Use bundle. When enabled, Computer Use is available to every agent preset, including Codex and PTC; disable it to restore PTC-only access."
+  }
+}
