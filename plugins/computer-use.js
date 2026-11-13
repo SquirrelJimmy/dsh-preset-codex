@@ -9,9 +9,9 @@ const REGISTRY_PACKAGE = '@deepseek-ai/dsh-computer-use'
 
 export const name = 'computer-use';
 
-function findProviderEntry(ctx) {
+function findEntry(ctx, moduleName) {
   for (const entry of ctx.loader.entries()) {
-    if (entry.options?.name === PROVIDER_PACKAGE) return entry;
+    if (entry.options?.name === moduleName) return entry;
   }
   return undefined;
 }
@@ -26,7 +26,7 @@ async function disposeFiber(fiber) {
   }
 }
 
-async function restoreProviderEntry(ctx, entry, originalDisabled) {
+async function restoreEntry(ctx, entry, originalDisabled) {
   if (!entry) return;
   try {
     await entry.update({ disabled: originalDisabled });
@@ -35,7 +35,7 @@ async function restoreProviderEntry(ctx, entry, originalDisabled) {
   }
 }
 
-async function disableProviderEntry(entry, disabledEntries) {
+async function disableEntry(entry, disabledEntries) {
   if (!entry || entry.disabled) return;
   const originalDisabled = entry.options?.disabled;
   await entry.update({ disabled: true });
@@ -45,10 +45,8 @@ async function disableProviderEntry(entry, disabledEntries) {
 export async function apply(ctx, config) {
   if (process.platform !== 'darwin') return;
 
-  const providerEntry = findProviderEntry(ctx);
   const disabledEntries = [];
   const mounted = [];
-  let ownRegistry = false;
 
   const disposeMounted = async () => {
     for (const fiber of [...mounted].reverse()) {
@@ -61,10 +59,32 @@ export async function apply(ctx, config) {
     mounted.length = 0;
   };
 
+  const restoreEntries = async () => {
+    for (const { entry, originalDisabled } of [...disabledEntries].reverse()) {
+      await restoreEntry(ctx, entry, originalDisabled);
+    }
+  };
+
+  // Register before the first await: the Loader creates and starts entries
+  // concurrently, so an official registry entry may otherwise register the
+  // same service while this plugin is still preparing its own.
+  const removeEntryListener = ctx.on('loader/entry-init', (entry) => {
+    const moduleName = entry.options?.name;
+    if (moduleName !== PROVIDER_PACKAGE && moduleName !== REGISTRY_PACKAGE) return;
+    if (entry.disabled) return;
+    void disableEntry(entry, disabledEntries).catch((error) => ctx.logger?.warn?.(error));
+  });
+
+  const stopListening = () => {
+    if (typeof removeEntryListener === 'function') removeEntryListener();
+  };
+
   try {
-    // The official bundle starts its provider first. Stop that entry before
-    // mounting ours so the exclusive `computerUse` registry can be reused.
-    await disableProviderEntry(providerEntry, disabledEntries);
+    // The official bundle owns both the registry and provider rows. Stop the
+    // provider first, then the registry, so the exclusive `computerUse` service
+    // slot is free before this plugin mounts its own registry.
+    await disableEntry(findEntry(ctx, PROVIDER_PACKAGE), disabledEntries);
+    await disableEntry(findEntry(ctx, REGISTRY_PACKAGE), disabledEntries);
 
     const existing = ctx.get('computerUse');
     if (existing?.providerName) {
@@ -80,33 +100,20 @@ export async function apply(ctx, config) {
         throw new Error(`Package ${REGISTRY_PACKAGE} did not export a Computer Use registry.`);
       }
       mounted.push(await ctx.plugin(ComputerUseRegistry));
-      ownRegistry = true;
     }
 
     const provider = await ctx.loader.import(PROVIDER_PACKAGE);
     mounted.push(await ctx.plugin(provider, { ...config, agentPreset: false }));
 
-    // If the official bundle is enabled later, stop its duplicate provider
-    // (and its registry when ours won the service slot) before it can start.
-    ctx.on('loader/entry-init', (entry) => {
-      const moduleName = entry.options?.name;
-      const duplicate = moduleName === PROVIDER_PACKAGE
-        || (ownRegistry && moduleName === REGISTRY_PACKAGE);
-      if (!duplicate || entry.disabled) return;
-      void disableProviderEntry(entry, disabledEntries).catch((error) => ctx.logger?.warn?.(error));
-    });
-
     ctx.effect(() => async () => {
+      stopListening();
       await disposeMounted();
-      for (const { entry, originalDisabled } of [...disabledEntries].reverse()) {
-        await restoreProviderEntry(ctx, entry, originalDisabled);
-      }
+      await restoreEntries();
     });
   } catch (error) {
+    stopListening();
     await disposeMounted();
-    for (const { entry, originalDisabled } of [...disabledEntries].reverse()) {
-      await restoreProviderEntry(ctx, entry, originalDisabled);
-    }
+    await restoreEntries();
     throw new Error(
       `Computer Use is unavailable: enable the official Computer Use bundle or check the DSH installation. ${error?.message ?? error}`,
       { cause: error },

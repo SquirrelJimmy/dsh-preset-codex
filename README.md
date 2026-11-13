@@ -44,12 +44,12 @@ bundle 的 patch 只在启动时合成为入口列表：新装、改 bundle 里�
 
 ## Computer Use（可选，仅 macOS）
 
-本 bundle 在插件详情页内置一个默认关闭的 Computer Use 组件 `dsh-preset-codex/plugins/computer-use.js`。macOS 上打开它后，会挂载官方 macOS provider，并以 `agentPreset: false` 注册，因此 Codex 预设和 PTC 预设都能使用 `cua` 工具与指引；关闭组件后 provider 和工具一并卸载。
+本 bundle 在插件详情页内置一个默认关闭的 Computer Use 组件 `dsh-preset-codex/plugins/computer-use.js`。macOS 上打开它后，会先自动停用官方 Computer Use 的 provider 与 registry 两行，再挂载官方 macOS provider，并以 `agentPreset: false` 注册，因此 Codex 预设和 PTC 预设都能使用 `cua` 工具与指引；关闭组件后 provider、registry 和工具一并恢复原状。
 
 1. 安装本 bundle 后重启 dsh（Desktop 重新打开）。
 2. 打开 **设置 → 插件**，进入 `dsh-preset-codex` 详情页，在「包含的组件」里打开 `dsh-preset-codex/plugins/computer-use.js`。
 3. 首次使用按系统提示完成辅助功能与屏幕录制授权。
-4. 官方 **Computer Use** 组合包可以保持启用：打开本组件时会先自动停用官方 macOS provider 并接管；关闭本组件后会恢复官方 provider，不需要手动来回切换。
+4. 官方 **Computer Use** 组合包可以保持启用：打开本组件时会自动停用官方 macOS provider 与 registry 两行并接管；关闭本组件后会恢复官方两行的原状态，不需要手动来回切换。
 
 非 macOS 上组件行仍会显示，但打开后不会加载 provider。当前单 bundle 方案不能按平台条件隐藏这一行。
 
