@@ -1,6 +1,6 @@
 {
   "name": "dsh-preset-codex",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "在真实仓库里长期作业的编码模式：先读代码再动手，改根因不绕症状，改动小而准。适合多文件修改、缺陷排查和代码审查。",
   "type": "module",
   "license": "MIT",
