@@ -37,6 +37,17 @@ async function restoreEntry(ctx, entry, originalDisabled) {
 
 async function disableEntry(entry, disabledEntries) {
   if (!entry || entry.disabled) return;
+  // While `_init` is still importing, `fiber` is unset and `update()` would
+  // only flip the option; the in-flight init would then start the entry anyway,
+  // because `_init` does not re-check `disabled` after its imports.
+  if (!entry.fiber && entry._initTask) {
+    try {
+      await entry._initTask;
+    } catch {
+      // The entry failed to start; disabling it below is still correct.
+    }
+  }
+  if (entry.disabled) return;
   const originalDisabled = entry.options?.disabled;
   await entry.update({ disabled: true });
   disabledEntries.push({ entry, originalDisabled });

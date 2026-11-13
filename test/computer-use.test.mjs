@@ -84,15 +84,17 @@ function makeRegistryEntry({ context, ...options } = {}) {
   });
 }
 
-async function withDarwin(fn) {
+async function withPlatform(platform, fn) {
   const descriptor = Object.getOwnPropertyDescriptor(process, 'platform');
-  Object.defineProperty(process, 'platform', { ...descriptor, value: 'darwin' });
+  Object.defineProperty(process, 'platform', { ...descriptor, value: platform });
   try {
     return await fn();
   } finally {
     Object.defineProperty(process, 'platform', descriptor);
   }
 }
+
+const withDarwin = (fn) => withPlatform('darwin', fn);
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -235,7 +237,7 @@ test('非 macOS 不导入、不挂载任何插件', async () => {
   const calls = [];
   const context = makeContext({ calls });
 
-  await apply(context, {});
+  await withPlatform('linux', () => apply(context, {}));
 
   assert.equal(calls.length, 0);
 });
