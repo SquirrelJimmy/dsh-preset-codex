@@ -44,7 +44,7 @@ bundle 的 patch 只在启动时合成为入口列表：新装、改 bundle 里�
 
 ## 预设说明
 
-Codex 模式把一套工程纪律压进系统提示词，改变的是行为而不是能力：动手前先读仓库的布局、约定和构建测试命令；过程中用短句说明在做什么、发现了什么，闷头连调工具时用户也跟得上；出问题追到根因，不用重试或兜底掩盖；改动贴着周边代码，不做顺手重构；交付时说清改了什么、怎么验证的、哪条路还没验。提示词以 `gpt-6.1-sol` 的 `instructions_template` 为唯一蓝本，旧 5.x prompt 只作 DSH 缺口补丁参考。工具面与 `standard` 几乎相同（差别只有四处，见下节，其中三处改变运行行为），所以它的不同几乎全部来自提示词和这个本地提醒插件。
+Codex 模式把一套工程纪律压进系统提示词，改变的是行为而不是能力：动手前先读仓库的布局、约定和构建测试命令；过程中用短句说明在做什么、发现了什么，闷头连调工具时用户也跟得上；出问题追到根因，不用重试或兜底掩盖；改动贴着周边代码，不做顺手重构；交付时说清改了什么、怎么验证的、哪条路还没验。提示词以 `gpt-6.1-sol` 的 `instructions_template` 为唯一蓝本，旧 5.x prompt 只作 DSH 缺口补丁参考。工具面与 `standard` 几乎相同（差别只有五处，见下节，其中四处改变运行行为），所以它的不同几乎全部来自提示词和这两个本地插件。
 
 **适合**：在真实仓库里做多文件改动、排查缺陷、补测试、做代码审查，以及需要连续跑很多步的长任务。
 
@@ -59,14 +59,21 @@ Codex 模式把一套工程纪律压进系统提示词，改变的是行为而�
 
 ## 预设内容
 
-22 条插件行，与 dsh 自带的 `standard` 预设同构，只改四处：
+23 条插件行，与 dsh 自带的 `standard` 预设同构，只改五处：
 
 - `persona`：Codex 风格的身份、工作方式与交付格式
 - `tool-todo`：`allowParallelInProgress: false`，同一时刻只有一个进行中
 - `todo-reminder`：本地插件，把 `todo_write` 的完整清单回显给模型，并在持续工作时每 4 次工具调用提醒一次
+- `commentary-nudge`：本地插件，检查每个用户可见的 root 工具批次的 owning assistant message；如果第一个 tool-call 之前没有正文，就在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。不拦工具、不出错误行、不设定时器；同一段沉默最多提醒一次，出现正文或进入新 turn 后重置。交互工具、`compress`/`wait_agent` 和 nested call 跳过。`enabled: false` 可关闭，退回提示词约束
 - 去掉 `tool-plugin-manager` 与 `tool-plugin-market`：编码 Agent 不该顺手改自己的运行时
 
-最后一条与 `standard` 的差别只在写法：`standard` 也把这两行标成 `disabled: true`，运行效果相同。所以真正改变行为的只有前三条。
+最后一条与 `standard` 的差别只在写法：`standard` 也把这两行标成 `disabled: true`，运行效果相同。所以真正改变行为的只有前四条。
+
+播报要能被看见，还依赖 Web 端的一个设置：**设置 → 通用设置 → 收起后显示的回复** 保持默认的「全部回复」。选「仅最终回答」时，过程里的回复会随工具调用一起折进「已完成，用时 …」，提示词和插件都在正常工作，但界面上看不到。
+
+### commentary nudge 的已知限制
+
+DSH 没有原生 commentary 通道，插件只能检查同一条 assistant message 里、第一个 tool-call 之前的 `text`。reasoning、工具 `description`、上一条消息都不算正文。软提醒不会拦截工具：没有正文的批次会先跑完，插件在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。`compress`/`wait_agent`、交互工具和 nested call 跳过；同一段沉默最多提醒一次，出现可见正文或进入新 turn 后重置。代价是第一批可能已经在没有正文的情况下执行完，notice 不可能补到它前面。`enabled: false` 可完全关闭。真正的解法是 DSH core 提供 commentary phase。
 
 ## 目录结构
 
@@ -79,10 +86,11 @@ Codex 模式把一套工程纪律压进系统提示词，改变的是行为而�
 ├─ icon.svg
 ├─ locale/{en,zh}.json      # 插件卡片的 meta.title / meta.description
 ├─ plugins/todo-reminder.js # 本地提醒插件：todo 清单回显与定期提醒
+├─ plugins/commentary-nudge.js # 本地插件：批次后播报提醒；缺正文时在批末注入 notice，不拦截
 ├─ src/
 │  ├─ preset.template.yml   # 源码：预设骨架 + 两个 persona 占位符
 │  └─ persona/{prefix,suffix}.md
-├─ test/{artifact,upstream}.test.mjs # 零依赖测试：产物新鲜度、预设行、元数据契约、同步映射
+├─ test/{artifact,commentary-nudge,todo-reminder,upstream}.test.mjs # 零依赖测试：产物新鲜度、预设行、元数据契约、插件行为、同步映射
 ├─ reference/codex/         # 上游提示词存档（不参与构建、不进包）
 ├─ reference/upstream.json  # 上次同步的上游提交与文件清单
 ├─ docs/adaptation.md       # 与上游的逐条映射

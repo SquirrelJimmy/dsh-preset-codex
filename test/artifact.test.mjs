@@ -32,6 +32,7 @@ const EXPECTED_PLUGINS = [
   'tool-ask-user',
   'tool-todo',
   'todo-reminder',
+  'commentary-nudge',
   'tool-web',
   'present',
   'tool-office',
@@ -68,19 +69,22 @@ test('persona 占位符已被替换成正文', () => {
   assert.match(artifact, /Then stop/);
 });
 
-test('四处与 standard 的刻意差异仍在', () => {
+test('五处与 standard 的刻意差异仍在', () => {
   assert.match(artifact, /^ {14}allowParallelInProgress: false$/m);
   assert.match(artifact, /^ {12}name: 'dsh-preset-codex\/plugins\/todo-reminder\.js'$/m);
+  assert.match(artifact, /^ {12}name: 'dsh-preset-codex\/plugins\/commentary-nudge\.js'$/m);
   assert.ok(!artifact.includes('dsh-tool-plugin-manager'));
   assert.ok(!artifact.includes('dsh-tool-plugin-market'));
 });
 
-test('本地 todo 提醒插件随包发布且可加载', async () => {
-  assert.ok(existsSync(path.join(root, 'plugins/todo-reminder.js')));
+test('本地插件随包发布且可加载', async () => {
   assert.ok(pkg.files.includes('plugins/*.js'));
   assert.ok('./plugins/*.js' in pkg.exports);
-  const plugin = await import(`${pkg.name}/plugins/todo-reminder.js`);
-  assert.equal(typeof plugin.apply, 'function');
+  for (const plugin of ['todo-reminder', 'commentary-nudge']) {
+    assert.ok(existsSync(path.join(root, `plugins/${plugin}.js`)), `缺少 plugins/${plugin}.js`);
+    const mod = await import(`${pkg.name}/plugins/${plugin}.js`);
+    assert.equal(typeof mod.apply, 'function', `${plugin} 没有导出 apply`);
+  }
 });
 
 test('locale 覆盖同一组语言，且 meta 字段非空', () => {
@@ -168,6 +172,15 @@ test('persona 不引用上游专有工具名', () => {
   }
 });
 
+test('播报与提问的规则不再互相打架', () => {
+  for (const contradiction of ['8–10 words', '8-10 words']) {
+    assert.ok(!persona.includes(contradiction), `播报长度又与「1–2 句」冲突：${contradiction}`);
+  }
+  assert.doesNotMatch(persona, /ask_user_question`?\s*once/, '提问被限成了「只问一次」');
+  assert.match(persona, /keep the question pending/, '缺少基线「需答复时挂起」的原文');
+  assert.match(persona, /60 seconds/, '缺少 60 秒播报规则');
+});
+
 /** 已安装的 dsh 根目录；找不到就跳过解析检查（仓库本身零依赖，不假定 dsh 在哪）。 */
 function installedDshRoot() {
   const candidates = [process.env.DSH_INSTALL_ROOT];
@@ -194,7 +207,7 @@ test('插件名在已安装的 dsh 中可解析', (t) => {
   const names = [...new Set([...artifact.matchAll(/name: '([^']+)'/g)].map((m) => m[1]))]
     .filter((name) => name !== 'cordis:group')
     .filter((name) => !name.startsWith('.') && !path.isAbsolute(name))
-    .filter((name) => name !== `${pkg.name}/plugins/todo-reminder.js`);
+    .filter((name) => !name.startsWith(`${pkg.name}/plugins/`));
   const missing = [];
   for (const name of names) {
     const [pkgName, sub] = splitSpecifier(name);

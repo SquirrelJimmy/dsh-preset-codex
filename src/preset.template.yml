@@ -126,6 +126,10 @@
             name: 'dsh-preset-codex/plugins/todo-reminder.js'
             config:
               remindEvery: 4
+          - id: commentary-nudge
+            name: 'dsh-preset-codex/plugins/commentary-nudge.js'
+            config:
+              enabled: true
           - id: tool-web
             name: '@deepseek-ai/dsh-tool-web'
             config:
