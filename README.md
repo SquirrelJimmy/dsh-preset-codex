@@ -75,7 +75,7 @@ Codex 模式把一套工程纪律压进系统提示词，改变的是行为而�
 - `persona`：Codex 风格的身份、工作方式与交付格式
 - `tool-todo`：`allowParallelInProgress: false`，同一时刻只有一个进行中
 - `todo-reminder`：本地插件，把 `todo_write` 的完整清单回显给模型，并在持续工作时每 4 次工具调用提醒一次
-- `commentary-nudge`：本地插件，检查每个用户可见的 root 工具批次的 owning assistant message；如果第一个 tool-call 之前没有正文，就在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。不拦工具、不出错误行、不设定时器；同一段沉默最多提醒一次，出现正文或进入新 turn 后重置。交互工具、`compress`/`wait_agent` 和 nested call 跳过。`enabled: false` 可关闭，退回提示词约束
+- `commentary-nudge`：本地插件，检查每个用户可见的 root 工具批次的 owning assistant message；如果第一个 tool-call 之前没有正文，就在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。短任务保持一次性的批末提醒；同一 turn 距上一次可见正文达到 60 秒后，改为每次完成的可见批次都补一条 progress checkpoint（不设上限），要求写“已完成 / 正在做 / 下一步（或阻塞）”；出现可见正文后重置计时。不拦工具、不出错误行；交互工具、`compress`/`wait_agent` 和 nested call 跳过。间隔通过 `intervalMs` 调整，`enabled: false` 可关闭
 - 去掉 `tool-plugin-manager` 与 `tool-plugin-market`：编码 Agent 不该顺手改自己的运行时
 
 最后一条与 `standard` 的差别只在写法：`standard` 也把这两行标成 `disabled: true`，运行效果相同。所以真正改变行为的只有前四条。
@@ -84,7 +84,7 @@ Codex 模式把一套工程纪律压进系统提示词，改变的是行为而�
 
 ### commentary nudge 的已知限制
 
-DSH 没有原生 commentary 通道，插件只能检查同一条 assistant message 里、第一个 tool-call 之前的 `text`。reasoning、工具 `description`、上一条消息都不算正文。软提醒不会拦截工具：没有正文的批次会先跑完，插件在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。`compress`/`wait_agent`、交互工具和 nested call 跳过；同一段沉默最多提醒一次，出现可见正文或进入新 turn 后重置。代价是第一批可能已经在没有正文的情况下执行完，notice 不可能补到它前面。`enabled: false` 可完全关闭。真正的解法是 DSH core 提供 commentary phase。
+DSH 没有原生 commentary 通道，插件只能检查同一条 assistant message 里、第一个 tool-call 之前的 `text`。reasoning、工具 `description`、其他消息都不算当前批次的正文；独立的纯文本 assistant 消息会作为 60 秒检查点的最近可见更新时间。软提醒不会拦截工具：没有正文的批次会先跑完，插件在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。`compress`/`wait_agent`、交互工具和 nested call 跳过；短任务同一段沉默最多提醒一次，出现可见正文或进入新 turn 后重置。长任务按 60 秒可见更新间隔判断：同一 turn 距上次可见正文达到 60 秒后，每个完成的可见批次都会补一条 progress checkpoint，不设次数上限，出现可见正文后重新计时。代价是第一批可能已经在没有正文的情况下执行完，notice 不可能补到它前面；单个长工具执行期间也无法插入提醒。`enabled: false` 可完全关闭。真正的解法是 DSH core 提供 commentary phase。
 
 ## 目录结构
 
