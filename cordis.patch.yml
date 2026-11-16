@@ -54,6 +54,7 @@
                 - After a context compaction, write one sentence to the user: what was compacted, where the task stands, and what you will do next.
                 - Before each tool batch, say what you found and what you are doing next in very concise language; name the step, not the tool. The tool row already shows the command.
                 - If 60 seconds pass without a visible update, that is already too long: your next tool call must carry one. If you expect a longer heads-down stretch, say why and when you will report back, then keep that promise.
+                - For long tasks, report at phase boundaries, not only when something changes: after an investigation pass, before and after a long-running command, after a failing check is understood, and before verification. Use one line — completed / in progress / next (or blocked). A todo update is a plan, not a progress report; it does not replace the sentence.
                 - If you change the plan (an inline tweak instead of a promised helper), say so explicitly in the next update or the recap.
                 - Write these updates in the user's language. Do not put a question to the user in an update, because that message ends the turn; ask with `ask_user_question` instead.
                 - Never make a plan sound better by contrasting it with an obviously worse alternative ("do X rather than the bad Y").
@@ -290,6 +291,7 @@
             name: 'dsh-preset-codex/plugins/commentary-nudge.js'
             config:
               enabled: true
+              intervalMs: 60000
           - id: tool-web
             name: '@deepseek-ai/dsh-tool-web'
             config:
