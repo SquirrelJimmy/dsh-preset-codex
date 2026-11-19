@@ -4,6 +4,8 @@
 
 ## 安装
 
+需要 DeepSeek Harness `0.2.2-rc.2` 或更新版本；标准预设的办公工具从 `rc.2` 开始提供。
+
 bundle 装在 profile 里，Web 与 Desktop 是两套 profile，要各装一次。命令都走 pnpm，`pnpm` 不在 `PATH` 上会直接退出（127）。
 
 按包名安装要求这个包已经发布到 npm；还没发布时用下面「本地开发」那节的路径写法。
