@@ -30,7 +30,7 @@
 ```bash
 node scripts/build.mjs --check    # 产物与源码一致
 npm test                          # 产物新鲜度、预设行、文案一致性、manifest 契约
-npm pack --dry-run                # 产物应只有 9 个文件（含自动附带的 LICENSE）
+npm pack --dry-run                # 产物应只有 10 个文件（含自动附带的 LICENSE）
 ```
 
 若默认缓存目录不可写导致 `npm` 报 EACCES，给 `--cache` 指一个可写目录即可。
@@ -40,6 +40,6 @@ npm pack --dry-run                # 产物应只有 9 个文件（含自动附�
 - **bundle 的 patch 只在启动时合成**，改完 YAML 需要重启 dsh，不享受 profile patch 的热加载。安装或卸载会改写 `dsh.profile.bundles`，但这不触发 bundle 层重新合成：实测装完不重启时，预设注册表里仍看不到新预设。
 - **Web 端没有预设编辑器**。设置页的预设列表是只读的，创建或覆盖预设走「创造模式」生成新的 bundle；改本预设只能改本仓库源码再重启。
 - **默认预设仍是 `standard`**，本预设不抢默认，由用户选择。
-- **persona 以 `gpt-6.1-sol` 为唯一蓝本**：来源是 `reference/codex/models-manager/models.json` 的 `gpt-6.1-sol.model_messages.instructions_template`；旧 5.x prompt 只作 DSH 缺口补丁参考，不能反向成为主基线。
+- **persona 以 `gpt-6.2-sol` 为唯一蓝本**：来源是提交 `29eb79e9866b3262a777fdf8195c1b9e63684c91`（`rust-v0.170.0`）的 `codex-rs/models-manager/models.json`，其中 `gpt-6.2-sol.model_messages.instructions_template` 与 `gpt-6.2-astra` 完全相同；固定源为 `https://raw.githubusercontent.com/openai/codex/29eb79e9866b3262a777fdf8195c1b9e63684c91/codex-rs/models-manager/models.json`。旧 5.x prompt 只作 DSH 缺口补丁参考，不能反向成为主基线。
 - **取舍顺序**：新版蓝本 → DSH 等价载体 → 旧 5.x 做法 → 丢弃；丢弃项必须在 `docs/adaptation.md` 说明理由。
 - **persona 不设硬性词数上限**。新增规则时仍优先合并重复项、保留上游好点，不适用载体按上述顺序替换，不要静默丢弃。

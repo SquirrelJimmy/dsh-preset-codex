@@ -55,7 +55,7 @@ bundle 的 patch 只在启动时合成为入口列表：新装、改 bundle 里�
 
 ## 预设说明
 
-Codex 模式把一套工程纪律压进系统提示词，改变的是行为而不是能力：动手前先读仓库的布局、约定和构建测试命令；过程中用短句说明在做什么、发现了什么，闷头连调工具时用户也跟得上；出问题追到根因，不用重试或兜底掩盖；改动贴着周边代码，不做顺手重构；交付时说清改了什么、怎么验证的、哪条路还没验。提示词以 `gpt-6.1-sol` 的 `instructions_template` 为唯一蓝本，旧 5.x prompt 只作 DSH 缺口补丁参考。工具面与 `standard` 几乎相同（差别只有五处，见下节，其中四处改变运行行为），所以它的不同几乎全部来自提示词和这两个本地插件。
+Codex 模式把一套工程纪律压进系统提示词，改变的是行为而不是能力：动手前先读仓库的布局、约定和构建测试命令；过程中用短句说明在做什么、发现了什么，闷头连调工具时用户也跟得上；出问题追到根因，不用重试或兜底掩盖；改动贴着周边代码，不做顺手重构；交付时说清改了什么、怎么验证的、哪条路还没验。提示词以 pinned `gpt-6.2-sol` 的 `instructions_template` 为唯一蓝本，`gpt-6.2-astra` 使用完全相同的模板；旧 5.x prompt 只作 DSH 缺口补丁参考。工具面与 `standard` 几乎相同（差别只有五处，见下节，其中四处改变运行行为），所以它的不同几乎全部来自提示词和这两个本地插件。
 
 **适合**：在真实仓库里做多文件改动、排查缺陷、补测试、做代码审查，以及需要连续跑很多步的长任务。
 
@@ -74,8 +74,8 @@ Codex 模式把一套工程纪律压进系统提示词，改变的是行为而�
 
 - `persona`：Codex 风格的身份、工作方式与交付格式
 - `tool-todo`：`allowParallelInProgress: false`，同一时刻只有一个进行中
-- `todo-reminder`：本地插件，把 `todo_write` 的完整清单回显给模型，并在持续工作时每 4 次工具调用提醒一次
-- `commentary-nudge`：本地插件，检查每个用户可见的 root 工具批次的 owning assistant message；如果第一个 tool-call 之前没有正文，就在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。短任务保持一次性的批末提醒；同一 turn 距上一次可见正文达到 60 秒后，改为每次完成的可见批次都补一条 progress checkpoint（不设上限），要求写“已完成 / 正在做 / 下一步（或阻塞）”；出现可见正文后重置计时。不拦工具、不出错误行；交互工具、`compress`/`wait_agent` 和 nested call 跳过。间隔通过 `intervalMs` 调整，`enabled: false` 可关闭
+- `todo-reminder`：本地插件，成功写入后回显规范化清单，保留其他插件已经替换的结果。每轮或重新写入清单时重置计数；默认每 4 次符合条件的非待办调用，在下一步提示当前清单里尚未完成的条目
+- `commentary-nudge`：本地插件，无正文的合格批次在下一步触发一次短提醒；每段沉默最多短提醒一次。从轮次开始或最近一条可见正文起满 60 秒，下一次合格续步提醒模型如实交代状态，即使没有新发现；持续沉默时长提醒至少相隔 60 秒。至少一个非跳过的根调用成功即可；跳过 `exit_plan_mode`、`ask_user_question`、`compress`、`wait_agent`。间隔可用 `intervalMs` 调整，`enabled: false` 可关闭
 - 去掉 `tool-plugin-manager` 与 `tool-plugin-market`：编码 Agent 不该顺手改自己的运行时
 
 最后一条与 `standard` 的差别只在写法：`standard` 也把这两行标成 `disabled: true`，运行效果相同。所以真正改变行为的只有前四条。
@@ -84,7 +84,7 @@ Codex 模式把一套工程纪律压进系统提示词，改变的是行为而�
 
 ### commentary nudge 的已知限制
 
-DSH 没有原生 commentary 通道，插件只能检查同一条 assistant message 里、第一个 tool-call 之前的 `text`。reasoning、工具 `description`、其他消息都不算当前批次的正文；独立的纯文本 assistant 消息会作为 60 秒检查点的最近可见更新时间。软提醒不会拦截工具：没有正文的批次会先跑完，插件在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。`compress`/`wait_agent`、交互工具和 nested call 跳过；短任务同一段沉默最多提醒一次，出现可见正文或进入新 turn 后重置。长任务按 60 秒可见更新间隔判断：同一 turn 距上次可见正文达到 60 秒后，每个完成的可见批次都会补一条 progress checkpoint，不设次数上限，出现可见正文后重新计时。代价是第一批可能已经在没有正文的情况下执行完，notice 不可能补到它前面；单个长工具执行期间也无法插入提醒。`enabled: false` 可完全关闭。真正的解法是 DSH core 提供 commentary phase。
+DSH 没有原生 commentary 通道，插件只能检查同一条 assistant message 里、第一个 tool-call 之前的 `text`。reasoning、工具 `description`、tool-call 后的文字和其他消息都不算当前批次的正文。它在 eligible root 调用成功后、下一次 `agent/pre-step` 才注入提醒，所以第一批可能已经在没有正文的情况下执行完，单个长工具执行期间也无法插入提醒。`enabled: false` 可完全关闭。真正的解法是 DSH core 提供 commentary phase。
 
 ## 目录结构
 
@@ -97,7 +97,7 @@ DSH 没有原生 commentary 通道，插件只能检查同一条 assistant messa
 ├─ icon.svg
 ├─ locale/{en,zh}.json      # 插件卡片的 meta.title / meta.description
 ├─ plugins/todo-reminder.js # 本地提醒插件：todo 清单回显与定期提醒
-├─ plugins/commentary-nudge.js # 本地插件：批次后播报提醒；缺正文时在批末注入 notice，不拦截
+├─ plugins/commentary-nudge.js # 本地插件：下一步播报提醒；缺正文时在 pre-step 注入 notice，不拦截
 ├─ plugins/computer-use.js  # 本地插件：macOS Computer Use 开关，默认关闭，挂官方 provider
 ├─ src/
 │  ├─ preset.template.yml   # 源码：预设骨架 + 两个 persona 占位符

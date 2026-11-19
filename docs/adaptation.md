@@ -6,11 +6,11 @@
 
 ## 唯一蓝本
 
-`reference/codex/models-manager/models.json` 中的 `gpt-6.1-sol.model_messages.instructions_template` 是唯一主蓝本。`gpt-6-astra`、`gpt-6.1-terra` 等只是同代模型变体，不单独充当来源；`models-manager/prompt.md` 是未知模型 fallback，只用于理解旧版兼容路径。
+固定来源是 `https://raw.githubusercontent.com/openai/codex/29eb79e9866b3262a777fdf8195c1b9e63684c91/codex-rs/models-manager/models.json`，对应 `rust-v0.170.0`。其中 `gpt-6.2-sol.model_messages.instructions_template` 是唯一主蓝本，且与 `gpt-6.2-astra` 完全相同。`models-manager/prompt.md` 是未知模型 fallback，只用于理解旧版兼容路径。
 
 | 上游文件 | 取什么 |
 | --- | --- |
-| `reference/codex/models-manager/models.json` → `gpt-6.1-sol.model_messages.instructions_template` | 权限与审批、自治与持久、写作风格、技术沟通、commentary/final、visualizations、skills、命令安全 |
+| pinned `codex-rs/models-manager/models.json` → `gpt-6.2-sol.model_messages.instructions_template` | 权限与审批、自治与持久、写作风格、技术沟通、commentary/final、visualizations、skills、命令安全、正常入口与旧输入、失败/重试/并发一致性、交付物检查 |
 
 `reference/codex/models-manager/prompt.md` 是未知模型的通用 fallback，只作表述参考，不参与 persona 蓝本判断。
 
@@ -34,30 +34,29 @@
 | `apply_patch` | `edit` 定点修改、`write` 新建文件 |
 | `update_plan` | `todo_write`：一步一个 `in_progress`，完成即标 `completed` |
 | `multi_tool_use.parallel` | 同一条消息里并发互不依赖的工具调用 |
-| `functions.request_user_input_async` | `ask_user_question` |
+| `functions.request_user_input_async` | `ask_user_question`，沿用 standard 的 legacy 模式，不移植 6.2 的可选等待时间示例 |
+| `functions.send_message_to_user_async` | 用工具前正文发进度；无需把 Codex 的异步消息工具暴露给模型 |
 | `SKILL.md` / skills 列表 | `skill` 工具与会话技能目录 |
-| `commentary` / `final` | 工具调用之间的正文更新 / 最终答复 |
-| Apps (Connectors) | 丢弃：DSH 没有等价连接器机制 |
-| Plugins | 丢弃：插件由 DSH 运行时管理，persona 不直接调用插件内部工具 |
+| `commentary` / `final` | 与工具调用同条的正文更新 / 最终答复 |
+| Plugins and Apps | 保留按用户指定渠道、权限和会话可用工具办事的原则，改用 DSH 的 skill、MCP 和服务工具；不移植 Codex 的插件标记、连接器命名空间或云运行机制 |
 
 ## 映射表
 
 | 上游内容 | 处理 | 落点与说明 |
 | --- | --- | --- |
 | 身份声明（GPT-5 in Codex CLI） | 替换 | 开头身份段：DSH + `{{model}}`，并说明 Codex 是 profile 名，不是另一个产品 |
-| Working with the user 的提问三段（可推断就不问、可选澄清约 60 秒后按声明假设推进、必须答复时挂起且不推进依赖分支） | 保留 + 替换 | §Permission and approval：`request_user_input_async` 换成 `ask_user_question`，三档判定逐条对译（含「多个问题合并成一次调用」「优先多选」「Elapsed time is not an answer」），提问次数不设上限，按真决策的个数走；判定里不再加本地分支，「不要把它写成假设」由基线「keep the question pending」覆盖 |
+| Working with the user（可推断就不问、可选澄清时可按安全假设推进、必答时保持挂起） | 保留 + 替换 | §Permission and approval：保留合并相关问题与多选，先完成不依赖答案的工作，再用 `ask_user_question` 提问；不启用 timed mode，不把跳过、超时或计划批准当作答复 |
 | 基线 `# When to ask the user for permission` P4：read-only actions 不需要许可 | 新增本地覆盖 | §Permission and approval / §Searching and reading：只读不等于无边界；大范围读取和隐私敏感目录必须先申请。基线没有该限制，这是本预设的有意安全边界，不是漏抄。 |
 | Autonomy and persistence（行动优先、任务不清也推进、compaction 不结束任务） | 保留 | §Autonomy and persistence |
 | Personality / Writing style（curious/thoughtful/lucid/warm/candid；plain language、主动语态、避免 AI slop 与 `X, not Y`） | 保留 + 收紧 | §Communicating 与 suffix §Reporting |
 | Technical communication（先 outcome 再 reasoning；what/why/test/risk） | 保留 | §Communicating 与 suffix §Reporting |
-| Intermediate commentary / Final answer（双通道、60 秒更新、final 自包含） | 保留 + 替换 | §Working in the open 与 suffix §Reporting；commentary 是消息正文，final 是最终答复 |
+| Intermediate commentary / Final answer（阶段更新、final 自包含） | 保留 + 替换 | §Working in the open 把 commentary 写进工具前正文；最终答复独立交代实质缺陷、未验路径和未经明确指示作出的假设或决定。60 秒防沉默要求是 DSH 本地补充 |
 | Final answer / Formatting rules（outcome-first、自包含、链接格式、无多余总结） | 保留 + 替换 | suffix §Reporting / §Formatting：路径用 DSH 的 `path:line`，不写 `file://` |
 | Visualizations（表格、Mermaid、内联图示；简单事实不画图） | 新增 | §Visualizations 与 suffix §Formatting：只在显著提升理解时使用 |
-| Writing PR descriptions（问题与最终行为优先） | 新增 | suffix §Reporting 下的 `### Writing PR descriptions` |
+| Writing PR descriptions（问题与最终行为优先） | 沿用本地补充 | 6.2 不再单列该段，suffix 保留已用的 PR 文案约定 |
+| Coding Style（正常入口、旧输入、失败/重试/并发一致性、测试取舍和交付物） | 保留 | §Coding style：通过实际入口保持既有行为，按具体回归价值加测试，逐项验收请求的交付，不顺带扩 scope |
 | Rules for getting work done（搜索、并发、shell escaping、等待上限、测试纪律） | 保留 + 替换 | §Command safety、§Verifying；`functions.exec` / `exec_command` 换成 `bash`、`workdir`、后台任务 |
-| Using skills（何时读、用户指令优先、首次使用播报、审批引用原文） | 新增 | §Using skills：用 `skill` 工具读取完整说明 |
-| Apps (Connectors) | 丢弃 | 新版有、旧版和 DSH 都没有等价连接器机制，不能把 Codex 的 `functions.*` 文案搬进来 |
-| Plugins | 丢弃 | 新版有、旧版和 DSH 都没有等价的 persona 插件调用机制，插件由 DSH 运行时管理 |
+| Using skills / Plugins and Apps | 保留 + 替换 | §Using skills and service tools：只使用当前会话开放的技能和服务工具，优先匹配的服务接口，并尊重用户指定的渠道和权限；无等价载体时明确限制 |
 | AGENTS.md 五条细则 | 替换 | 开头第二段一句「指令文件对其作用域有约束力」；细则由 `dsh-agent-instructions` 的 reminder 承担 |
 | 默认直接改代码，不交方案 | 保留 | §How to work「Proceed on reversible work」 |
 | Planning（`update_plan`、恰好一个 `in_progress`、不重复计划、简单任务不计划） | 替换 | §Planning and execution：改用 `todo_write`；保留判断，并明确要求完成一步立即标 `completed`、最终答复前收尾整个清单；`todo-reminder` 插件负责把完整清单回显给模型并定期提醒 |
@@ -79,21 +78,23 @@
 | Proactivity（不结束在「还要不要别的」） | 保留 | suffix 末段：只有真存在下一步时才提 |
 | 问时间用 `date` | 丢弃 | `time-context` 已把时间注入运行时上下文 |
 | `【F:…†L5-L14】` 引用语法 | 丢弃 | DSH 用 `path:line` 链接 |
-| User Updates Spec（动手前说计划、过程中短更新、转向时说明、长任务回报） | 保留 + 替换 | §Working in the open：内容与语气对译 User Updates Spec；频率按 6.1 基线补成「每次有值得知道的变化就 1–2 句」与 60 秒硬线，并删掉 5.1 长任务段落的「8–10 词」上限（与 1–2 句冲突，模型因此干脆不播报）；唯一本地约束是播报必须与工具调用同一条消息，见增补表 |
+| User Updates Spec（动手前说计划、过程中短更新、转向时说明、长任务回报） | 保留 + 替换 | §Working in the open：首次调用前简述计划，随后在关键发现、阶段变化和阻塞时短报；短间隔无变化可跳过。旧版「8–10 词」限制与 1–2 句冲突，继续省略；DSH 的同条正文和长静默线见下表 |
 | guardian / realtime / compact 等子提示 | 丢弃 | 属 Codex 运行时机制，与编码预设无关 |
 
 ## 本地增补
 
 | 增补 | 为什么 |
 | --- | --- |
-| 提问走 `ask_user_question` | 用散文提问会结束回合，答案要等下一轮才回来 |
+| 提问走 `ask_user_question` | 用散文提问会结束回合，答案要等下一轮才回来；可选澄清先按安全假设推进，必须回答时先做独立工作再直接提问，跳过/超时回答和计划审批不算回答 |
 | 压缩后重读文件、重跑检查 | 摘要是转述，长任务最容易在这里把旧结论当现状 |
 | 沙箱拒绝是策略结果，不是代码缺陷 | 避免把策略拦截误判成被测代码的问题 |
 | API 或报错不熟时查当前文档 | 凭记忆重建接口是编码任务最常见的错误 |
 | 计划步骤要指名文件或命令 | 上游靠示例传达，这里压成一句可判定的规则 |
 | 播报与工具调用写进同一条消息 | 单独发文本会结束回合，用户只看到半句话 |
-| `commentary-nudge` 改为批次后软提醒 | Codex 有独立 commentary 通道，DSH 只有「挂在工具调用上的正文」：把频率交给模型自觉时，长任务里会退化成整段沉默。硬前置拦截会把缺失播报变成用户可见的工具错误，体感不可接受；插件改为在 `tools/post-execute` 检查当前用户可见的 root tool batch 的 owning assistant message，如果第一个 tool-call 之前没有非空 text，就在该批最后一个可见结果上注入一条 notice，提醒下一批在同一个 assistant message 里补 1–2 句。不拦工具、不出错误行、不设定时器；`exit_plan_mode`、`ask_user_question`、`compress`、`wait_agent` 和 nested call 跳过。短任务同一段沉默最多提醒一次，出现可见正文或进入新 turn 后重置；同一 turn 距上次可见正文达到 60 秒后，每个完成的可见批次都会补一条 progress checkpoint，不设次数上限，出现可见正文后重新计时，要求「已完成 / 正在做 / 下一步（或阻塞）」。`intervalMs` 可覆盖 60 秒间隔。代价是第一批可能已经在没有正文的情况下执行完，notice 只能作用于下一批，单个长工具执行期间无法插入提醒；真正的解法是 DSH core 的 commentary phase。session/event 缺失、找不到 owning message 时不注入 |
-| 提问判定保持基线原文 | 初版在本地加过两条判定（「弱化项目自设闸门需批准」「计划审批不等于回答」），证据是一次 Jotai 评估里模型两次写「需用户拍板」（`dsh-work.md:4231`、`dsh-work.md:6596`）却没问。复盘发现漂移来自本地自造的「Ask once」和五段清单把基线的三档判定压窄了；删掉自造条款、回到基线原文（含「keep the question pending」）后，判定不需要枚举闸门种类，也不会因为「可逆」把用户的选择降级成假设。本次只在计划层补一条通用澄清：会改变开始时间、成本、风险、范围或需要策略例外的选择属于用户，写计划前先问；它不是恢复「Ask once」，也不改变基线的三档判定 |
+| 后台与委派的交付纪律 | DSH 结束当前轮后，后台任务结算或子代理回报仍可能唤醒空闲会话。收尾前收取并验证必要结果，通过可用工具取消本次发起且已无用的工作；取消未确认则明说。主动留待续报时交代未完成项、原因和续报预期，仍依赖待收结果时只交阶段进度。迟到通知只用于兑现续报或纠正重要结论，不重复交付、不自启新任务；不改变 DSH 通知配置。 |
+| `todo-reminder` 保留规范清单与下游结果 | 成功 `todo_write` 只在下游没有自定义 `value` 或 `content` 时回显规范化后的完整清单，并保留下游决定；会话投影是恢复来源，`turn/start` 与新的 `todo/write` 按会话重置；达到 `remindEvery` 个符合条件的 accepted `tools/post-execute` 调用后，在下一次 `agent/pre-step` 追加仍未完成的条目 |
+| `commentary-nudge` 在续步防沉默 | 用 `assistant/message` 和 `tools/result` 关联真实批次，只要一个非跳过的根调用成功，就能在同一 Agent 获准进入的下一步追加提醒。每段沉默最多一次短提醒；从轮次开始或最近可见正文起达到 60 秒，下一次合格续步提醒模型如实交代现状，即使没有新发现。后续长提醒也至少相隔 60 秒，可用 `intervalMs` 调整，`enabled: false` 可关闭。不唤醒结束的轮次，不设定时器，单次推理或阻塞工具执行中无法插入提醒 |
+| 保留用户拥有的决定 | 一次 Jotai 评估里模型两次写「需用户拍板」却没问。影响开始时间、成本、风险、范围或策略例外的选择仍须在写计划前提问；可逆性不把用户的决定降级成假设，也不限制只能提问一次 |
 | 计划是决策文档，不是证据堆放 | 一次 Jotai 评估里，计划写了 10,337 字符仍在「先升 3.0.1 还是等 7 天」上替用户拍板；另一侧 Codex 用 2,700 字符先问后写。suffix §Writing plans 要求：仍有用户决定时，第一屏是该决定（选项、推荐、影响）；assumption 只放未能验证的事实；按改动面分组、证据压成一张表、结尾写边界与回滚；不设字数与固定小节名 |
 | 大范围读取/隐私目录审批 | 全盘搜索会跨出工作区、挂载盘和其他用户目录，既可能泄露隐私，也造成不必要的资源消耗；本预设用一条本地规则覆盖基线的“只读免批准”，要求先说明根目录、用途和边界并征得同意。 |
 

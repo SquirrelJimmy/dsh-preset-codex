@@ -1,8 +1,8 @@
 {
   "version": 1,
   "repository": "https://github.com/openai/codex.git",
-  "ref": "main",
-  "commit": "c0cc9fc820f62e4dbdde68214dd6d792d6c8a7ee",
+  "ref": "rust-v0.170.0",
+  "commit": "29eb79e9866b3262a777fdf8195c1b9e63684c91",
   "files": {
     "reference/codex/base_instructions/default.md": {
       "upstream": "codex-rs/protocol/src/prompts/base_instructions/default.md",
@@ -66,8 +66,8 @@
     },
     "reference/codex/models-manager/models.json": {
       "upstream": "codex-rs/models-manager/models.json",
-      "sha256": "1384625c0b6b3e67d3c60da29becea2b017f2c283fc1e2d05b8edafb4698eb10",
-      "bytes": 539696
+      "sha256": "d50b6749506d97e5f334dbabcb666eb1689f423cf3e88cfabdcf3c536b873068",
+      "bytes": 667893
     },
     "reference/codex/models-manager/prompt.md": {
       "upstream": "codex-rs/models-manager/prompt.md",

@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto';
 
 export const name = 'todo-reminder';
+export const inject = ['sessionProjections'];
 
 const DEFAULT_REMIND_EVERY = 4;
 const STATUS_MARKS = {
@@ -16,9 +17,6 @@ const STATUS_MARKS = {
   in_progress: '>',
   pending: ' ',
 };
-
-const todoLists = new WeakMap();
-const callsSinceWrite = new WeakMap();
 
 function statusMark(status) {
   return STATUS_MARKS[status] ?? ' ';
@@ -61,37 +59,38 @@ export function apply(ctx, config) {
     ? configured
     : DEFAULT_REMIND_EVERY;
 
+  const callsSinceWrite = new WeakMap();
+
+  ctx.on('session/event', (session, event) => {
+    if (event.type === 'turn/start' || event.type === 'todo/write') callsSinceWrite.delete(session);
+  });
+
   ctx.on('tools/post-execute', async (exec, result, next) => {
     const decision = await next();
-    const agent = exec.agent;
-    if (agent === undefined) return decision;
+    const session = exec.agent?.session;
+    if (session === undefined || decision.kind !== 'accept') return decision;
 
     if (exec.name === 'todo_write') {
-      const todos = exec.arguments?.todos;
-      if (decision.kind === 'accept' && !result.isError && Array.isArray(todos)) {
-        todoLists.set(agent, todos);
-        callsSinceWrite.delete(agent);
-        return { ...decision, content: [{ type: 'text', text: renderTodoList(todos) }] };
-      }
-      return decision;
+      const todos = result.value?.todos;
+      if (result.isError || !Array.isArray(todos)
+          || Object.hasOwn(decision, 'value') || Object.hasOwn(decision, 'content')) return decision;
+      return { ...decision, content: [{ type: 'text', text: renderTodoList(todos) }] };
     }
 
-    const todos = todoLists.get(agent);
-    if (todos === undefined || !hasOpenTodos(todos) || decision.kind === 'block') {
-      return decision;
-    }
+    const count = callsSinceWrite.get(session) ?? 0;
+    callsSinceWrite.set(session, Math.min(count + 1, remindEvery));
+    return decision;
+  });
 
-    const count = (callsSinceWrite.get(agent) ?? 0) + 1;
-    if (count < remindEvery) {
-      callsSinceWrite.set(agent, count);
-      return decision;
-    }
+  ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
+    const decision = await next();
+    if (decision.kind !== 'enter' || signal?.aborted) return decision;
+    const session = agent.session;
+    if ((callsSinceWrite.get(session) ?? 0) < remindEvery) return decision;
 
-    callsSinceWrite.set(agent, 0);
-    const reminder = reminderMessage(todos);
-    return {
-      ...decision,
-      additionalContexts: [...(decision.additionalContexts ?? []), reminder],
-    };
+    callsSinceWrite.delete(session);
+    const { todos } = ctx.sessionProjections.snapshot(session, ['todos']).values;
+    if (!Array.isArray(todos) || !hasOpenTodos(todos)) return decision;
+    return { ...decision, messages: [...decision.messages, reminderMessage(todos)] };
   });
 }

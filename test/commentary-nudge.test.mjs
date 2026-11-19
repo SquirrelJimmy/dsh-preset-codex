@@ -2,515 +2,212 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { apply } from '../plugins/commentary-nudge.js';
 
-const accept = async () => ({ kind: 'accept' });
+const enter = { kind: 'enter', messages: [] };
+const bash = { type: 'tool-call', id: 'bash', name: 'bash', arguments: { description: 'Work' } };
+const text = (value) => ({ type: 'text', text: value });
 
-function context() {
-  const handlers = new Map();
-  return {
-    on(event, handler) {
-      assert.equal(handlers.has(event), false, `duplicate handler for ${event}`);
-      handlers.set(event, handler);
-    },
-    events() {
-      return [...handlers.keys()];
-    },
-    run(event, ...args) {
-      const handler = handlers.get(event);
-      assert.ok(handler, `no handler for ${event}`);
-      return handler(...args);
-    },
-  };
-}
-
-function agentWith(events) {
-  return { session: {}, pendingEvents: [...events] };
-}
-
-function assistantEvent({
-  seq = 1,
-  turn = 1,
-  step = 1,
-  text,
-  textAfter = false,
-  time = Date.now(),
-  calls = [{ id: 'call-1', name: 'bash' }],
-} = {}) {
-  const content = [];
-  if (text !== undefined && !textAfter) content.push({ type: 'text', text });
-  for (const call of calls) {
-    content.push({ type: 'tool-call', id: call.id, name: call.name, arguments: '{}' });
-  }
-  if (text !== undefined && textAfter) content.push({ type: 'text', text });
-  return {
-    seq,
-    time,
-    type: 'assistant/message',
-    data: { turn, step, message: { role: 'assistant', content } },
-  };
-}
-
-function execFor({ callId = 'call-1', name = 'bash', agent, parent } = {}) {
-  return {
-    callId,
-    rootCallId: callId,
-    name,
-    arguments: '{}',
-    agent,
-    parent,
-  };
-}
-
-function eventHasCall(event, callId) {
-  const content = event?.data?.message?.content;
-  return Array.isArray(content) && content.some(
-    (part) => part?.type === 'tool-call' && part.id === callId,
-  );
-}
-
-function run(ctx, exec, next = accept) {
-  const pendingEvents = exec.agent?.pendingEvents;
-  if (Array.isArray(pendingEvents)) {
-    const index = pendingEvents.findIndex((event) => eventHasCall(event, exec.callId));
-    if (index !== -1) {
-      for (const event of pendingEvents.splice(0, index + 1)) {
-        ctx.run('session/event', exec.agent.session, event);
-      }
-    }
-  }
-  return ctx.run('tools/post-execute', exec, {}, next);
-}
-
-function noticeFor(decision) {
-  return decision.additionalContexts?.[0];
-}
-
-test('registers the session event feed and the post-execute nudge', () => {
-  const ctx = context();
-  apply(ctx, {});
-  assert.deepEqual(ctx.events(), ['session/event', 'tools/post-execute']);
-});
-
-test('text before the first tool call does not add a notice', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([
-    assistantEvent({ text: 'Found the config; checking the transform next.' }),
-  ]);
-
-  const result = await run(ctx, execFor({ agent }));
-  assert.deepEqual(result, { kind: 'accept' });
-  assert.equal(result.additionalContexts, undefined);
-});
-
-test('a text-less batch gets one notice on its last visible call', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([
-    assistantEvent({
-      calls: [{ id: 'call-1', name: 'bash' }, { id: 'call-2', name: 'bash' }],
-    }),
-  ]);
-
-  const first = await run(ctx, execFor({ agent, callId: 'call-1' }));
-  const second = await run(ctx, execFor({ agent, callId: 'call-2' }));
-  assert.equal(first.additionalContexts, undefined);
-  assert.equal(second.additionalContexts?.length, 1);
-
-  const notice = noticeFor(second);
-  assert.equal(notice.role, 'user');
-  assert.equal(notice.source.kind, 'commentary-nudge');
-  assert.equal(notice.source.form, 'notice');
-  assert.match(notice.content[0].text, /1-2 sentences/);
-  assert.match(notice.content[0].text, /same assistant message/);
-  assert.match(notice.content[0].text, /user's language/);
-});
-
-test('text after the first tool call still counts as missing', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([
-    assistantEvent({ text: 'This should not count.', textAfter: true }),
-  ]);
-
-  const result = await run(ctx, execFor({ agent }));
-  assert.equal(result.additionalContexts?.length, 1);
-});
-
-test('whitespace is not a visible update', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([assistantEvent({ text: '   \n\t' })]);
-
-  const result = await run(ctx, execFor({ agent }));
-  assert.equal(result.additionalContexts?.length, 1);
-});
-
-test('one notice per silence, and a new turn rearms it', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const first = assistantEvent({ seq: 1, turn: 1, calls: [{ id: 'call-1', name: 'bash' }] });
-  const second = assistantEvent({ seq: 2, turn: 1, step: 2, calls: [{ id: 'call-2', name: 'bash' }] });
-  const nextTurn = assistantEvent({ seq: 3, turn: 2, step: 1, calls: [{ id: 'call-3', name: 'bash' }] });
-  const agent = agentWith([first, second, nextTurn]);
-
-  await run(ctx, execFor({ agent, callId: 'call-1' }));
-  const secondResult = await run(ctx, execFor({ agent, callId: 'call-2' }));
-  const nextTurnResult = await run(ctx, execFor({ agent, callId: 'call-3' }));
-
-  assert.equal(secondResult.additionalContexts, undefined);
-  assert.equal(nextTurnResult.additionalContexts?.length, 1);
-});
-
-test('visible text rearms the notice after a silent batch', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const silent = assistantEvent({ seq: 1, turn: 1, step: 1, calls: [{ id: 'call-1', name: 'bash' }] });
-  const visible = assistantEvent({ seq: 2, turn: 1, step: 2, text: 'Progress update.', calls: [{ id: 'call-2', name: 'bash' }] });
-  const silentAgain = assistantEvent({ seq: 3, turn: 1, step: 3, calls: [{ id: 'call-3', name: 'bash' }] });
-  const agent = agentWith([silent, visible, silentAgain]);
-
-  const first = await run(ctx, execFor({ agent, callId: 'call-1' }));
-  const visibleResult = await run(ctx, execFor({ agent, callId: 'call-2' }));
-  const last = await run(ctx, execFor({ agent, callId: 'call-3' }));
-
-  assert.equal(first.additionalContexts?.length, 1);
-  assert.equal(visibleResult.additionalContexts, undefined);
-  assert.equal(last.additionalContexts?.length, 1);
-});
-
-test('internal or interactive tools are skipped', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([
-    assistantEvent({
-      calls: [{ id: 'ask-1', name: 'ask_user_question' }],
-    }),
-  ]);
-
-  const result = await run(ctx, execFor({ agent, callId: 'ask-1', name: 'ask_user_question' }));
-  assert.equal(result.additionalContexts, undefined);
-});
-
-test('nested calls are skipped', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([assistantEvent()]);
-
-  const result = await run(ctx, execFor({ agent, parent: { callId: 'parent' } }));
-  assert.equal(result.additionalContexts, undefined);
-});
-
-test('a mixed batch notices after the last visible call, not after a skipped call', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([
-    assistantEvent({
-      calls: [
-        { id: 'bash-1', name: 'bash' },
-        { id: 'compress-1', name: 'compress' },
-        { id: 'bash-2', name: 'bash' },
-      ],
-    }),
-  ]);
-
-  const first = await run(ctx, execFor({ agent, callId: 'bash-1' }));
-  const skipped = await run(ctx, execFor({ agent, callId: 'compress-1', name: 'compress' }));
-  const second = await run(ctx, execFor({ agent, callId: 'bash-2' }));
-
-  assert.equal(first.additionalContexts, undefined);
-  assert.equal(skipped.additionalContexts, undefined);
-  assert.equal(second.additionalContexts?.length, 1);
-});
-
-test('a skipped-only batch does not consume the silence budget', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([
-    assistantEvent({
-      calls: [{ id: 'wait-1', name: 'wait_agent' }],
-    }),
-  ]);
-
-  const result = await run(ctx, execFor({ agent, callId: 'wait-1', name: 'wait_agent' }));
-  assert.equal(result.additionalContexts, undefined);
-});
-
-test('a missing session event does not throw or add a notice', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = { session: {} };
-
-  const result = await run(ctx, execFor({ agent }));
-  assert.deepEqual(result, { kind: 'accept' });
-});
-
-test('a call without an owning assistant message does not add a notice', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([]);
-
-  const result = await run(ctx, execFor({ agent }));
-  assert.deepEqual(result, { kind: 'accept' });
-});
-
-test('assistant events are scoped to their session', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const first = agentWith([]);
-  const second = agentWith([]);
-  const event = assistantEvent({ calls: [{ id: 'call-1', name: 'bash' }] });
-  ctx.run('session/event', first.session, event);
-
-  const result = await run(ctx, execFor({ agent: second, callId: 'call-1' }));
-  assert.deepEqual(result, { kind: 'accept' });
-});
-
-test('short tasks keep the original one-shot behavior under 60 seconds', async () => {
+function fixture(config) {
   let clock = 1_000_000;
-  const ctx = context();
-  apply(ctx, { now: () => clock });
-  const agent = agentWith([
-    assistantEvent({ seq: 1, turn: 1, step: 1, time: 1_000_000, calls: [{ id: 'call-1', name: 'bash' }] }),
-    assistantEvent({ seq: 2, turn: 1, step: 2, time: 1_000_000, calls: [{ id: 'call-2', name: 'bash' }] }),
-  ]);
-
-  const first = await run(ctx, execFor({ agent, callId: 'call-1' }));
-  clock = 1_059_000;
-  const second = await run(ctx, execFor({ agent, callId: 'call-2' }));
-
-  assert.equal(first.additionalContexts?.length, 1);
-  assert.equal(second.additionalContexts, undefined);
-});
-
-test('a short notice does not postpone the 60-second checkpoint', async () => {
-  let clock = 1_030_000;
-  const ctx = context();
-  apply(ctx, { now: () => clock });
-  const agent = agentWith([
-    assistantEvent({ seq: 1, turn: 1, step: 1, time: 1_000_000, calls: [{ id: 'call-1', name: 'bash' }] }),
-    assistantEvent({ seq: 2, turn: 1, step: 2, time: 1_030_000, calls: [{ id: 'call-2', name: 'bash' }] }),
-  ]);
-
-  const first = await run(ctx, execFor({ agent, callId: 'call-1' }));
-  assert.match(noticeFor(first).source.summary, /^commentary update due$/);
-
-  clock = 1_060_000;
-  const second = await run(ctx, execFor({ agent, callId: 'call-2' }));
-  assert.match(noticeFor(second).source.summary, /^progress checkpoint:/);
-});
-
-test('a 60-second silent turn gets a progress checkpoint', async () => {
-  let clock = 1_060_000;
-  const ctx = context();
-  apply(ctx, { now: () => clock });
-  const agent = agentWith([
-    assistantEvent({ seq: 1, turn: 1, step: 1, time: 1_000_000 }),
-  ]);
-
-  const result = await run(ctx, execFor({ agent }));
-  const notice = noticeFor(result);
-  assert.equal(result.additionalContexts?.length, 1);
-  assert.match(notice.source.summary, /^progress checkpoint:/);
-  assert.match(notice.content[0].text, /已完成/);
-  assert.match(notice.content[0].text, /正在做/);
-  assert.match(notice.content[0].text, /下一步/);
-});
-
-test('progress checkpoints repeat every 60 seconds without a cap', async () => {
-  let clock = 1_060_000;
-  const ctx = context();
-  apply(ctx, { now: () => clock });
-  const events = [];
-  for (let index = 1; index <= 4; index += 1) {
-    events.push(assistantEvent({
-      seq: index,
-      turn: 1,
-      step: index,
-      time: 1_000_000,
-      calls: [{ id: `call-${index}`, name: 'bash' }],
-    }));
+  let turn = 1;
+  let step = 1;
+  const handlers = new Map();
+  const agent = { session: {} };
+  apply({ on: (event, handler) => handlers.set(event, handler) }, { now: () => clock, ...config });
+  function event(type, data, target) {
+    handlers.get('session/event')(target.session, { type, data, time: clock });
   }
-  const agent = agentWith(events);
+  return {
+    agent,
+    events: () => [...handlers.keys()],
+    time: (elapsed) => { clock = 1_000_000 + elapsed; },
+    start(number = 1, target = agent) {
+      turn = number;
+      step = 1;
+      event('turn/start', { turn }, target);
+    },
+    end(target = agent) { event('turn/end', { turn }, target); },
+    assistant(content = [bash], target = agent) {
+      event('assistant/message', { turn, step, message: { role: 'assistant', content } }, target);
+    },
+    result(call = bash, { error = false, parent, target = agent } = {}) {
+      handlers.get('tools/result')({ agent: target, callId: call.id, name: call.name, parent }, { isError: error });
+    },
+    pre({ decision = enter, signal, target = agent, advance = true } = {}) {
+      if (advance) step += 1;
+      return handlers.get('agent/pre-step')({ agent: target, turn, step, signal }, async () => decision);
+    },
+    async batch(content = [bash]) {
+      this.assistant(content);
+      this.result();
+      return this.pre();
+    },
+  };
+}
 
-  const decisions = [];
-  decisions.push(await run(ctx, execFor({ agent, callId: 'call-1' })));
-  clock = 1_120_000;
-  decisions.push(await run(ctx, execFor({ agent, callId: 'call-2' })));
-  clock = 1_180_000;
-  decisions.push(await run(ctx, execFor({ agent, callId: 'call-3' })));
-  clock = 1_240_000;
-  decisions.push(await run(ctx, execFor({ agent, callId: 'call-4' })));
+function notice(decision) {
+  return decision.messages.find((message) => message.source?.kind === 'commentary-nudge');
+}
 
-  for (const decision of decisions) {
-    assert.equal(decision.additionalContexts?.length, 1);
-    assert.match(decision.additionalContexts[0].source.summary, /^progress checkpoint:/);
+test('enabled: false registers no hooks', () => {
+  assert.deepEqual(fixture({ enabled: false }).events(), []);
+});
+
+test('a silent batch appends once, preserves existing messages and rearms after a new turn', async () => {
+  const host = fixture();
+  host.start();
+  host.assistant();
+  host.result();
+  host.result();
+  const existing = { role: 'user', content: [], source: { kind: 'other' } };
+  const decision = { ...enter, messages: [existing] };
+  const first = await host.pre({ decision });
+  assert.deepEqual(decision.messages, [existing]);
+  assert.equal(first.messages[0], existing);
+  assert.equal(first.messages.length, 2);
+  assert.equal(notice(first).source.summary, 'commentary update due');
+  assert.match(notice(first).content[0].text, /user's language/);
+  assert.equal(await host.pre({ advance: false }), enter);
+  assert.equal(await host.batch(), enter);
+  host.end();
+  host.start(2);
+  assert.ok(notice(await host.batch()));
+});
+
+test('mixed success and blocked or early failed calls qualify in either completion order', async () => {
+  const failed = { ...bash, id: 'failed' };
+  const early = { ...bash, id: 'early' };
+  for (const calls of [[bash, failed, early], [early, failed, bash]]) {
+    const host = fixture();
+    host.start();
+    host.assistant([bash, failed, early]);
+    for (const call of calls) host.result(call, { error: call !== bash });
+    assert.ok(notice(await host.pre()));
   }
 });
 
-test('visible text resets the 60-second window', async () => {
-  let clock = 1_100_000;
-  const ctx = context();
-  apply(ctx, { now: () => clock });
-  const agent = agentWith([
-    assistantEvent({ seq: 1, turn: 1, step: 1, time: 1_000_000, calls: [{ id: 'call-1', name: 'bash' }] }),
-    assistantEvent({ seq: 2, turn: 1, step: 2, time: 1_100_000, text: 'Progress update.', calls: [{ id: 'call-2', name: 'bash' }] }),
-    assistantEvent({ seq: 3, turn: 1, step: 3, time: 1_100_000, calls: [{ id: 'call-3', name: 'bash' }] }),
-  ]);
-
-  const first = await run(ctx, execFor({ agent, callId: 'call-1' }));
-  const visible = await run(ctx, execFor({ agent, callId: 'call-2' }));
-  clock = 1_160_000;
-  const afterWindow = await run(ctx, execFor({ agent, callId: 'call-3' }));
-
-  assert.equal(first.additionalContexts?.length, 1);
-  assert.equal(visible.additionalContexts, undefined);
-  assert.equal(afterWindow.additionalContexts?.length, 1);
-  assert.match(afterWindow.additionalContexts[0].source.summary, /^progress checkpoint:/);
-});
-
-test('a long-running tool is measured from the visible update it followed', async () => {
-  let clock = 1_070_000;
-  const ctx = context();
-  apply(ctx, { now: () => clock });
-  const agent = agentWith([
-    assistantEvent({ seq: 1, turn: 1, step: 1, time: 1_000_000, text: 'Starting the long check.' }),
-  ]);
-
-  const result = await run(ctx, execFor({ agent }));
-  assert.equal(result.additionalContexts?.length, 1);
-  assert.match(result.additionalContexts[0].source.summary, /^progress checkpoint:/);
-});
-
-test('the plugin never cancels the task', async () => {
-  let cancelCalls = 0;
-  const agent = agentWith([
-    assistantEvent({ seq: 1, turn: 1, step: 1, time: 1_000_000 }),
-  ]);
-  agent.cancel = () => { cancelCalls += 1; throw new Error('must not cancel'); };
-
-  const ctx = context();
-  apply(ctx, { now: () => 1_070_000 });
-
-  const result = await run(ctx, execFor({ agent }));
-  assert.equal(result.additionalContexts?.length, 1);
-  assert.equal(cancelCalls, 0);
-});
-
-test('an earlier block decision is returned unchanged', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const agent = agentWith([assistantEvent()]);
-
-  const result = await run(ctx, execFor({ agent }), async () => ({ kind: 'block' }));
-  assert.deepEqual(result, { kind: 'block' });
-});
-
-test('enabled: false leaves the plugin inactive', () => {
-  const ctx = context();
-  apply(ctx, { enabled: false });
-  assert.deepEqual(ctx.events(), []);
-});
-
-test('a later session event cannot retroactively satisfy an earlier call', async () => {
-  const ctx = context();
-  apply(ctx, { now: () => 1_002_000 });
-  const first = assistantEvent({
-    seq: 1,
-    turn: 1,
-    step: 1,
-    time: 1_000_000,
-    calls: [{ id: 'call-1', name: 'bash' }],
-  });
-  const later = assistantEvent({
-    seq: 2,
-    turn: 1,
-    step: 2,
-    time: 1_001_000,
-    text: 'This text belongs to the later event.',
-    calls: [{ id: 'call-1', name: 'bash' }],
-  });
-  const agent = agentWith([first, later]);
-
-  const result = await run(ctx, execFor({ agent, callId: 'call-1' }));
-  assert.equal(result.additionalContexts?.length, 1);
-  assert.match(noticeFor(result).source.summary, /^commentary update due$/);
-});
-
-test('tracks at most 256 calls per session', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const calls = Array.from({ length: 257 }, (_, index) => ({
-    id: `call-${index}`,
-    name: 'bash',
-  }));
-  const agent = agentWith([
-    assistantEvent({
-      seq: 1,
-      turn: 1,
-      step: 1,
-      time: 1_000_000,
-      calls,
-    }),
-  ]);
-
-  let result;
-  for (const call of calls) {
-    result = await run(ctx, execFor({ agent, callId: call.id }));
+test('no notice for a skipped, nested, failed, or unowned result', async () => {
+  for (const [content, call, options] of [
+    [[{ ...bash, name: 'ask_user_question' }], bash, {}],
+    [[{ ...bash, name: 'compress' }], bash, {}],
+    [[{ ...bash, name: 'exit_plan_mode' }], bash, {}],
+    [[{ ...bash, name: 'wait_agent' }], bash, {}],
+    [[bash], bash, { parent: { callId: 'ptc' } }],
+    [[bash], bash, { error: true }],
+    [[bash], { ...bash, id: 'missing' }, {}],
+    [[], bash, {}],
+  ]) {
+    const host = fixture();
+    host.start();
+    host.assistant(content);
+    host.result(call, options);
+    assert.equal(await host.pre(), enter);
   }
-
-  assert.equal(result.additionalContexts, undefined);
 });
 
-test('a text-only assistant message counts as a visible update', async () => {
-  const ctx = context();
-  apply(ctx, { now: () => 1_070_000 });
-  const progress = assistantEvent({
-    seq: 1,
-    turn: 1,
-    step: 1,
-    time: 1_000_000,
-    text: 'I found the config; checking the transform next.',
-    calls: [],
-  });
-  const toolBatch = assistantEvent({
-    seq: 2,
-    turn: 1,
-    step: 2,
-    time: 1_010_000,
-    calls: [{ id: 'call-1', name: 'bash' }],
-  });
-  const agent = agentWith([progress, toolBatch]);
-
-  const result = await run(ctx, execFor({ agent }));
-  assert.match(noticeFor(result).source.summary, /^progress checkpoint:/);
+test('results from a different Agent or session cannot trigger the notice', async () => {
+  const host = fixture();
+  host.start();
+  host.assistant();
+  host.result(bash, { target: { session: {} } });
+  const other = { session: host.agent.session };
+  host.result();
+  assert.equal(await host.pre({ target: other, advance: false }), enter);
+  assert.ok(notice(await host.pre()));
 });
 
-test('agents sharing a session keep separate progress state', async () => {
-  const ctx = context();
-  apply(ctx, {});
-  const session = {};
-  const first = { session, pendingEvents: [
-    assistantEvent({
-      seq: 1,
-      turn: 1,
-      step: 1,
-      time: 1_000_000,
-      calls: [{ id: 'call-a', name: 'bash' }],
-    }),
-  ] };
-  const second = { session, pendingEvents: [
-    assistantEvent({
-      seq: 2,
-      turn: 1,
-      step: 1,
-      time: 1_000_000,
-      calls: [{ id: 'call-b', name: 'bash' }],
-    }),
-  ] };
+test('blocked, aborted, ended and incomplete batches do not inject a notice', async () => {
+  const rejected = { kind: 'reject' };
+  for (const scenario of ['blocked', 'aborted', 'ended', 'incomplete']) {
+    const host = fixture();
+    host.start();
+    host.assistant();
+    host.time(70_000);
+    if (scenario !== 'incomplete') host.result();
+    if (scenario === 'ended') host.end();
+    const options = scenario === 'aborted' ? { signal: AbortSignal.abort() }
+      : scenario === 'blocked' ? { decision: rejected } : {};
+    assert.equal(await host.pre(options), options.decision ?? enter);
+  }
+});
 
-  const firstResult = await run(ctx, execFor({ agent: first, callId: 'call-a' }));
-  const secondResult = await run(ctx, execFor({ agent: second, callId: 'call-b' }));
+test('a success from a different model step is not reused', async () => {
+  const host = fixture();
+  host.start();
+  host.assistant();
+  host.result();
+  host.time(70_000);
+  const rejected = { kind: 'reject' };
+  assert.equal(await host.pre({ decision: rejected }), rejected);
+  assert.equal(await host.pre(), enter);
+});
 
-  assert.equal(firstResult.additionalContexts?.length, 1);
-  assert.equal(secondResult.additionalContexts?.length, 1);
+test('measures silence from turn start and throttles subsequent checkpoints', async () => {
+  const host = fixture();
+  host.start();
+  host.time(58_000);
+  assert.equal(notice(await host.batch()).source.summary, 'commentary update due');
+  host.time(59_999);
+  assert.equal(await host.batch(), enter);
+  host.time(60_000);
+  const first = notice(await host.batch());
+  assert.match(first.source.summary, /^progress checkpoint: 1m/);
+  assert.match(first.content[0].text, /still checking or waiting/);
+  host.time(119_999);
+  assert.equal(await host.batch(), enter);
+  host.time(120_000);
+  assert.match(notice(await host.batch()).source.summary, /^progress checkpoint: 2m/);
+});
+
+test('a visible update resets both clocks and rearms the short notice', async () => {
+  const host = fixture();
+  host.start();
+  host.time(60_000);
+  assert.match(notice(await host.batch()).source.summary, /^progress checkpoint:/);
+  host.time(80_000);
+  assert.equal(await host.batch([text('Checking the next config.'), bash]), enter);
+  host.time(90_000);
+  assert.equal(notice(await host.batch()).source.summary, 'commentary update due');
+  host.time(139_999);
+  assert.equal(await host.batch(), enter);
+  host.time(140_000);
+  assert.match(notice(await host.batch()).source.summary, /^progress checkpoint: 1m/);
+});
+
+test('reasoning, whitespace, descriptions and post-call text do not reset the clock', async () => {
+  const host = fixture();
+  host.start();
+  host.time(60_000);
+  const result = await host.batch([{ type: 'reasoning', text: 'Thinking' }, text(' \n '), bash, text('After tool')]);
+  assert.match(notice(result).source.summary, /^progress checkpoint:/);
+});
+
+test('a text-only assistant message also resets the silence baseline', async () => {
+  const host = fixture();
+  host.start();
+  host.time(50_000);
+  host.assistant([text('Work is underway.')]);
+  assert.equal(await host.pre(), enter);
+  host.time(60_000);
+  assert.equal(notice(await host.batch()).source.summary, 'commentary update due');
+  host.time(110_000);
+  assert.match(notice(await host.batch()).source.summary, /^progress checkpoint: 1m/);
+});
+
+test('a long tool is evaluated only after it completes and the model enters the next step', async () => {
+  const host = fixture({ intervalMs: 10_000 });
+  host.start();
+  host.assistant([text('Starting a long check.'), bash]);
+  host.time(10_000);
+  host.result();
+  const result = await host.pre();
+  assert.match(notice(result).source.summary, /^progress checkpoint: 10s/);
+});
+
+test('a first checkpoint consumes the short reminder for that silence', async () => {
+  const host = fixture();
+  host.start();
+  host.time(120_000);
+  assert.match(notice(await host.batch()).source.summary, /^progress checkpoint: 2m/);
+  host.time(121_000);
+  assert.equal(await host.batch(), enter);
 });

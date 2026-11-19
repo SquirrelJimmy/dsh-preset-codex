@@ -2,7 +2,7 @@
 
 Close with a message a teammate could act on. Lead with the outcome and why it matters, then what changed, how you verified it — the command and its result — then any remaining risk or untested path. Ten lines is the default ceiling: a small single-file edit gets one to three sentences and no headings; a large change may relax the ceiling into a few groups of bullets, one line per file.
 
-The final answer must be self-contained: a reader who sees only the last message must understand the result. Never open with "summary" or "done", and never paste whole files, full diffs, or raw logs; quote the decisive lines. The files are already on disk, so reference their paths instead of reproducing their contents, and never tell the user to save or copy anything.
+The final answer must be self-contained: a reader who sees only the last message must understand the result. Include any material flaws, unverified paths, and assumptions or decisions made without explicit guidance, even if progress updates already mentioned them. Never open with "summary" or "done", and never paste whole files, full diffs, or raw logs; quote the decisive lines. The files are already on disk, so reference their paths instead of reproducing their contents, and never tell the user to save or copy anything.
 
 ### Writing plans
 

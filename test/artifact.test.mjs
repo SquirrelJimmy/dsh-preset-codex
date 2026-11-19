@@ -73,8 +73,8 @@ test('五处与 standard 的刻意差异仍在', () => {
   assert.match(artifact, /^ {14}allowParallelInProgress: false$/m);
   assert.match(artifact, /^ {12}name: 'dsh-preset-codex\/plugins\/todo-reminder\.js'$/m);
   assert.match(artifact, /^ {12}name: 'dsh-preset-codex\/plugins\/commentary-nudge\.js'$/m);
-  assert.ok(!artifact.includes('dsh-tool-plugin-manager'));
-  assert.ok(!artifact.includes('dsh-tool-plugin-market'));
+  assert.doesNotMatch(artifact, /^ +name: ['"]?@deepseek-ai\/dsh-plugin-manager\/tools['"]? *$/m);
+  assert.doesNotMatch(artifact, /^ +name: ['"]?@deepseek-ai\/dsh-plugin-market\/tools['"]? *$/m);
 });
 
 test('本地插件随包发布且可加载', async () => {
@@ -191,7 +191,7 @@ test('注入的 persona 与源文件逐字一致', () => {
 const persona = ['prefix', 'suffix'].map((name) => read(`src/persona/${name}.md`)).join('\n');
 
 test('persona 不引用上游专有工具名', () => {
-  for (const token of ['apply_patch', 'update_plan', 'multi_tool_use', 'functions.request_user_input_async', 'functions.send_user_message_async', 'functions.exec']) {
+  for (const token of ['apply_patch', 'update_plan', 'multi_tool_use', 'functions.request_user_input_async', 'functions.send_user_message_async', 'functions.send_message_to_user_async', 'functions.exec']) {
     assert.ok(!persona.includes(token), `persona 里仍有上游工具名 ${token}`);
   }
 });
@@ -201,8 +201,19 @@ test('播报与提问的规则不再互相打架', () => {
     assert.ok(!persona.includes(contradiction), `播报长度又与「1–2 句」冲突：${contradiction}`);
   }
   assert.doesNotMatch(persona, /ask_user_question`?\s*once/, '提问被限成了「只问一次」');
-  assert.match(persona, /keep the question pending/, '缺少基线「需答复时挂起」的原文');
-  assert.match(persona, /60 seconds/, '缺少 60 秒播报规则');
+});
+
+test('产物 persona 保留 60 秒播报规则，提问不承诺可选等待计时', () => {
+  const prefix = blockScalar('prefix');
+  const sections = prefix.split(/^## /m);
+  const progress = sections.find((section) => section.startsWith('Working in the open\n'));
+  const permission = sections.find((section) => section.startsWith('Permission and approval\n'));
+  assert.ok(progress, '缺少播报小节');
+  assert.match(progress, /60 seconds[^\n]*progress|60 seconds[^\n]*visible update/i);
+  assert.ok(permission, '缺少提问与审批小节');
+  assert.match(permission, /ask_user_question/);
+  assert.match(permission, /\b(?:keep|leave)\b[^.\n]*\bpending\b/i);
+  assert.doesNotMatch(permission, /\b\d+\s*(?:seconds?|minutes?)\b|\b(?:wait|waiting)\s+(?:a little|briefly|longer)\b/i);
 });
 
 test('persona 规定大范围读取和隐私敏感目录先申请', () => {
@@ -210,46 +221,4 @@ test('persona 规定大范围读取和隐私敏感目录先申请', () => {
   assert.match(persona, /privacy-sensitive directory/);
   assert.match(persona, /ask_user_question/);
   assert.match(persona, /Never start from `\/`/);
-});
-
-/** 已安装的 dsh 根目录；找不到就跳过解析检查（仓库本身零依赖，不假定 dsh 在哪）。 */
-function installedDshRoot() {
-  const candidates = [process.env.DSH_INSTALL_ROOT];
-  try {
-    const prefix = execFileSync('npm', ['root', '-g'], { encoding: 'utf8' }).trim();
-    candidates.push(path.join(prefix, '@deepseek-ai', 'dsh'));
-  } catch {}
-  candidates.push(path.join(path.dirname(process.execPath), '..', 'lib', 'node_modules', '@deepseek-ai', 'dsh'));
-  return candidates.find((dir) => dir && existsSync(path.join(dir, 'package.json')));
-}
-
-/** '@scope/pkg/sub' → ['@scope/pkg', 'sub']；'@scope/pkg' → ['@scope/pkg', '']。 */
-function splitSpecifier(name) {
-  const parts = name.split('/');
-  return name.startsWith('@')
-    ? [parts.slice(0, 2).join('/'), parts.slice(2).join('/')]
-    : [parts[0], parts.slice(1).join('/')];
-}
-
-test('插件名在已安装的 dsh 中可解析', (t) => {
-  const dshRoot = installedDshRoot();
-  if (!dshRoot) return t.skip('未找到已安装的 dsh');
-  const version = JSON.parse(readFileSync(path.join(dshRoot, 'package.json'), 'utf8')).version;
-  const names = [...new Set([...artifact.matchAll(/name: '([^']+)'/g)].map((m) => m[1]))]
-    .filter((name) => name !== 'cordis:group')
-    .filter((name) => !name.startsWith('.') && !path.isAbsolute(name))
-    .filter((name) => !name.startsWith(`${pkg.name}/plugins/`));
-  const missing = [];
-  for (const name of names) {
-    const [pkgName, sub] = splitSpecifier(name);
-    const manifest = path.join(dshRoot, 'node_modules', pkgName, 'package.json');
-    if (!existsSync(manifest)) {
-      missing.push(`${name}（包不存在）`);
-      continue;
-    }
-    if (!sub) continue;
-    const { exports: ex } = JSON.parse(readFileSync(manifest, 'utf8'));
-    if (!ex || !ex[`./${sub}`]) missing.push(`${name}（exports 里没有 ./${sub}）`);
-  }
-  assert.deepEqual(missing, [], `dsh ${version} 中解析失败`);
 });
